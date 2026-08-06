@@ -19,6 +19,7 @@ import {
   createChinaOrderItem,
   updateChinaOrderItem,
   toggleChinaOrderItem,
+  toggleChinaOrderItemArrived,
   deleteChinaOrderItem,
 } from "@/lib/actions/china-order-items";
 
@@ -30,6 +31,7 @@ type ChinaOrderItemRow = {
   quantity: number;
   note: string | null;
   ordered: boolean;
+  arrived: boolean;
   createdAt: Date;
   createdBy: { name: string };
 };
@@ -133,6 +135,17 @@ export function ChinaOrderList({
     });
   }
 
+  function handleToggleArrived(id: string, arrived: boolean) {
+    startTransition(async () => {
+      try {
+        await toggleChinaOrderItemArrived(id, arrived);
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
+      }
+    });
+  }
+
   function handleDelete(id: string) {
     startTransition(async () => {
       try {
@@ -182,10 +195,11 @@ export function ChinaOrderList({
       </form>
 
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Table className="min-w-[560px]">
+        <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10" />
+              <TableHead className="w-16 text-center">Đã đặt</TableHead>
+              <TableHead className="w-16 text-center">Đã về</TableHead>
               <TableHead>Tên hàng</TableHead>
               <TableHead className="w-20">SL</TableHead>
               <TableHead>Ghi chú</TableHead>
@@ -198,6 +212,7 @@ export function ChinaOrderList({
             {items.map((it) =>
               editingId === it.id ? (
                 <TableRow key={it.id}>
+                  <TableCell />
                   <TableCell />
                   <TableCell>
                     <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -235,10 +250,16 @@ export function ChinaOrderList({
                 </TableRow>
               ) : (
                 <TableRow key={it.id} className={it.ordered ? "opacity-50" : undefined}>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Checkbox
                       checked={it.ordered}
                       onCheckedChange={(c) => handleToggle(it.id, c === true)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={it.arrived}
+                      onCheckedChange={(c) => handleToggleArrived(it.id, c === true)}
                     />
                   </TableCell>
                   <TableCell className={it.ordered ? "line-through" : undefined}>
@@ -272,7 +293,7 @@ export function ChinaOrderList({
             )}
             {items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   Không có hàng cần order
                 </TableCell>
               </TableRow>

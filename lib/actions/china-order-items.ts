@@ -62,6 +62,17 @@ export async function toggleChinaOrderItem(id: string, ordered: boolean) {
   revalidatePath("/nhap-hang-trung");
 }
 
+export async function toggleChinaOrderItemArrived(id: string, arrived: boolean) {
+  await requireSession();
+
+  await prisma.chinaOrderItem.update({
+    where: { id },
+    data: { arrived },
+  });
+
+  revalidatePath("/nhap-hang-trung");
+}
+
 export async function deleteChinaOrderItem(id: string) {
   const session = await requireSession();
   requireAdmin(session);

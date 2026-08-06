@@ -144,10 +144,12 @@ model ChinaOrderItem {
   quantity    Int
   note        String?
   ordered     Boolean  @default(false)
+  arrived     Boolean  @default(false)
   createdById String
   createdAt   DateTime @default(now())
 
   createdBy User @relation(fields: [createdById], references: [id])
 
   @@index([ordered])
+  @@index([arrived])
 }

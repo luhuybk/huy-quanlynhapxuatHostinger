@@ -81,7 +81,6 @@ export function ChinaImportList({
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead>
-              <TableHead>Mã phiếu</TableHead>
               <TableHead>Số mặt hàng</TableHead>
               <TableHead>Người tạo</TableHead>
               {isAdmin && <TableHead className="w-20" />}
@@ -91,7 +90,6 @@ export function ChinaImportList({
             {imports.map((t) => (
               <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetailId(t.id)}>
                 <TableCell>{formatDate(t.date)}</TableCell>
-                <TableCell className="font-mono text-xs">{t.code}</TableCell>
                 <TableCell>{t.items.length}</TableCell>
                 <TableCell>{t.createdBy.name}</TableCell>
                 {isAdmin && (
@@ -113,7 +111,7 @@ export function ChinaImportList({
             ))}
             {imports.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
                   Không có phiếu nào
                 </TableCell>
               </TableRow>

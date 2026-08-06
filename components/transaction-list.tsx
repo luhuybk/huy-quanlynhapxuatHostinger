@@ -185,7 +185,6 @@ export function TransactionList({
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead>
-              <TableHead>Mã phiếu</TableHead>
               <TableHead>{type === "IMPORT" ? "Đối tác" : "Đại lý"}</TableHead>
               <TableHead>Số SKU</TableHead>
               {type === "IMPORT" ? (
@@ -212,7 +211,6 @@ export function TransactionList({
                 onClick={() => setDetailId(t.id)}
               >
                 <TableCell>{formatDate(t.date)}</TableCell>
-                <TableCell className="font-mono text-xs">{t.code}</TableCell>
                 <TableCell>{partnerName(t)}</TableCell>
                 <TableCell>{t.items.length}</TableCell>
                 {type === "IMPORT" ? (
@@ -275,7 +273,7 @@ export function TransactionList({
             {transactions.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={8}
                   className="text-center text-muted-foreground"
                 >
                   Không có phiếu nào
@@ -365,10 +363,10 @@ export function TransactionList({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Sản phẩm</TableHead>
-                      <TableHead>Brand</TableHead>
-                      <TableHead>Đơn vị</TableHead>
                       <TableHead>Số lượng</TableHead>
+                      <TableHead>Đơn vị</TableHead>
                       <TableHead>Quy đổi</TableHead>
+                      <TableHead>Brand</TableHead>
                       {type === "IMPORT" && (
                         <>
                           <TableHead className="text-center">Khớp SL</TableHead>
@@ -381,12 +379,12 @@ export function TransactionList({
                     {detail.items.map((it) => (
                       <TableRow key={it.id}>
                         <TableCell>{it.sku.name}</TableCell>
-                        <TableCell>{it.sku.brand.name}</TableCell>
+                        <TableCell className="font-medium">{it.quantityInput}</TableCell>
                         <TableCell>
                           {it.unitType === "CASE" ? "Thùng" : "Lẻ"}
                         </TableCell>
-                        <TableCell>{it.quantityInput}</TableCell>
                         <TableCell>{it.quantityUnits} sp</TableCell>
+                        <TableCell>{it.sku.brand.name}</TableCell>
                         {type === "IMPORT" && (
                           <>
                             <TableCell className="text-center">
