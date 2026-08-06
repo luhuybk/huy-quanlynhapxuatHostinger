@@ -384,7 +384,11 @@ export function TransactionForm({
                   <TableRow key={r.rowId}>
                     <TableCell>
                       <SkuPicker
-                        skus={skus}
+                        skus={
+                          r.brandId
+                            ? skus.filter((s) => s.brandId === r.brandId)
+                            : skus
+                        }
                         value={{
                           skuId: r.skuId,
                           skuName: r.skuName,

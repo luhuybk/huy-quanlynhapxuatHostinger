@@ -13,6 +13,8 @@ import { AgentManager } from "@/components/settings/agent-manager";
 import { BrandManager } from "@/components/settings/brand-manager";
 import { SkuManager } from "@/components/settings/sku-manager";
 import { UserManager } from "@/components/settings/user-manager";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -36,7 +38,16 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-5xl">
-      <h1 className="mb-6 text-2xl font-semibold">Cài đặt</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Cài đặt</h1>
+        {isAdmin && (
+          <Button variant="outline" asChild>
+            <a href="/api/export" download>
+              <Download className="h-4 w-4" /> Xuất dữ liệu backup
+            </a>
+          </Button>
+        )}
+      </div>
       <Tabs defaultValue="sku">
         <TabsList>
           <TabsTrigger value="sku">SKU</TabsTrigger>
