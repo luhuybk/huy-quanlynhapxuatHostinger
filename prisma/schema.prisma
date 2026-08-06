@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// UserRole is "ADMIN" | "SHARED", validated at the application layer.
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("ADMIN")
+  createdAt    DateTime @default(now())
+
+  transactions Transaction[]
+  chinaImports ChinaImport[]
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  note      String?
+  createdAt DateTime @default(now())
+
+  skus         Sku[]
+  transactions Transaction[]
+}
+
+model Agent {
+  id        String   @id @default(cuid())
+  name      String
+  note      String?
+  createdAt DateTime @default(now())
+
+  transactions Transaction[]
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  skus Sku[]
+}
+
+model Sku {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  brandId       String
+  unitsPerCase  Int      @default(1)
+  supplierId    String?
+  isQuickCreate Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  brand    Brand    @relation(fields: [brandId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  items    TransactionItem[]
+}
+
+// SQLite has no native enum support; TransactionType is "IMPORT" | "EXPORT"
+// and UnitType is "CASE" | "UNIT", validated at the application layer.
+
+model Transaction {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  type        String
+  date        DateTime
+  supplierId  String?
+  agentId     String?
+  note        String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  // IMPORT-only status flag
+  paidDebt Boolean @default(false)
+
+  // EXPORT-only status flags
+  goodsShipped Boolean @default(false)
+  paid         Boolean @default(false)
+  settled      Boolean @default(false)
+
+  supplier  Supplier?         @relation(fields: [supplierId], references: [id])
+  agent     Agent?            @relation(fields: [agentId], references: [id])
+  createdBy User              @relation(fields: [createdById], references: [id])
+  items     TransactionItem[]
+
+  @@index([type, date])
+}
+
+model TransactionItem {
+  id              String   @id @default(cuid())
+  transactionId   String
+  skuId           String
+  unitType        String
+  quantityInput   Int
+  quantityUnits   Int
+  matchedQuantity Boolean  @default(false)
+  matchedDebt     Boolean  @default(false)
+  note            String?
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  sku         Sku         @relation(fields: [skuId], references: [id])
+}
+
+// Nhập hàng Trung: simplified import flow with free-text item names —
+// no Brand/Sku catalog and no Supplier link.
+model ChinaImport {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  date        DateTime
+  note        String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy User              @relation(fields: [createdById], references: [id])
+  items     ChinaImportItem[]
+
+  @@index([date])
+}
+
+model ChinaImportItem {
+  id            String @id @default(cuid())
+  chinaImportId String
+  itemName      String
+  quantity      Int
+  note          String?
+
+  chinaImport ChinaImport @relation(fields: [chinaImportId], references: [id], onDelete: Cascade)
+}
