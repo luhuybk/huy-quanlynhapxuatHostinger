@@ -8,7 +8,9 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// UserRole is "ADMIN" | "SHARED", validated at the application layer.
+// UserRole is "ADMIN" | "SHARED" | "STAFF", validated at the application layer.
+// STAFF (nhân viên): can only see EXPORT transactions for agents they own
+// or shared (ownerId null) agents — see Agent.ownerId and lib/get-transactions.ts.
 
 model User {
   id           String   @id @default(cuid())
@@ -21,12 +23,14 @@ model User {
   transactions    Transaction[]
   chinaImports    ChinaImport[]
   chinaOrderItems ChinaOrderItem[]
+  ownedAgents     Agent[]          @relation("AgentOwner")
 }
 
 model Supplier {
   id        String   @id @default(cuid())
   name      String
   note      String?
+  sortOrder Int      @default(autoincrement())
   createdAt DateTime @default(now())
 
   skus         Sku[]
@@ -37,14 +41,22 @@ model Agent {
   id        String   @id @default(cuid())
   name      String
   note      String?
+  sortOrder Int      @default(autoincrement())
+  // null = shared (chung), visible to everyone. Otherwise only that STAFF
+  // user (and ADMIN/SHARED) can see this agent and its EXPORT transactions.
+  ownerId   String?
   createdAt DateTime @default(now())
 
+  owner        User?         @relation("AgentOwner", fields: [ownerId], references: [id])
   transactions Transaction[]
+
+  @@index([ownerId])
 }
 
 model Brand {
   id        String   @id @default(cuid())
   name      String   @unique
+  sortOrder Int      @default(autoincrement())
   createdAt DateTime @default(now())
 
   skus Sku[]
@@ -58,6 +70,7 @@ model Sku {
   unitsPerCase  Int      @default(1)
   supplierId    String?
   isQuickCreate Boolean  @default(false)
+  sortOrder     Int      @default(autoincrement())
   createdAt     DateTime @default(now())
 
   brand    Brand    @relation(fields: [brandId], references: [id])

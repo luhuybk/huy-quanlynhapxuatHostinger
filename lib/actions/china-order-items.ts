@@ -10,7 +10,7 @@ async function requireSession() {
   return session;
 }
 
-function requireAdmin(session: { user: { role: "ADMIN" | "SHARED" } }) {
+function requireAdmin(session: { user: { role: "ADMIN" | "SHARED" | "STAFF" } }) {
   if (session.user.role !== "ADMIN") {
     throw new Error("Tài khoản chung không có quyền thực hiện thao tác này");
   }

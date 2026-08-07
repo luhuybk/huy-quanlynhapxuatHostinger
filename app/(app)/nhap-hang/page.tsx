@@ -18,10 +18,10 @@ export default async function ImportPage({
 
   const [transactions, suppliers, brands, skus] = await Promise.all([
     getTransactions("IMPORT", filters),
-    prisma.supplier.findMany({ orderBy: { name: "asc" } }),
-    prisma.brand.findMany({ orderBy: { name: "asc" } }),
+    prisma.supplier.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.brand.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.sku.findMany({
-      orderBy: { name: "asc" },
+      orderBy: { sortOrder: "asc" },
       include: { brand: { select: { name: true } } },
     }),
   ]);

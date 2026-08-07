@@ -32,11 +32,13 @@ import {
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { createUser, updateUser, deleteUser } from "@/lib/actions/users";
 
-type Role = "ADMIN" | "SHARED";
+type Role = "ADMIN" | "SHARED" | "STAFF";
 type UserItem = { id: string; email: string; name: string; role: Role };
 
 function roleLabel(role: string) {
-  return role === "ADMIN" ? "Admin" : "Tài khoản chung";
+  if (role === "ADMIN") return "Admin";
+  if (role === "STAFF") return "Nhân viên";
+  return "Tài khoản chung";
 }
 
 function CreateUserForm({
@@ -106,6 +108,7 @@ function CreateUserForm({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="SHARED">Tài khoản chung</SelectItem>
+            <SelectItem value="STAFF">Nhân viên</SelectItem>
             <SelectItem value="ADMIN">Admin</SelectItem>
           </SelectContent>
         </Select>
@@ -181,6 +184,7 @@ function EditUserForm({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="SHARED">Tài khoản chung</SelectItem>
+            <SelectItem value="STAFF">Nhân viên</SelectItem>
             <SelectItem value="ADMIN">Admin</SelectItem>
           </SelectContent>
         </Select>

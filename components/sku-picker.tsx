@@ -41,11 +41,13 @@ export function SkuPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
+  // Stable sort: keeps quick-create items first while preserving the
+  // catalog's manually configured order (skus arrive pre-sorted by sortOrder).
   const sorted = useMemo(
     () =>
       [...skus].sort((a, b) => {
         if (a.isQuickCreate !== b.isQuickCreate) return a.isQuickCreate ? -1 : 1;
-        return a.name.localeCompare(b.name);
+        return 0;
       }),
     [skus]
   );

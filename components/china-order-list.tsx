@@ -23,7 +23,7 @@ import {
   deleteChinaOrderItem,
 } from "@/lib/actions/china-order-items";
 
-type Role = "ADMIN" | "SHARED";
+type Role = "ADMIN" | "SHARED" | "STAFF";
 
 type ChinaOrderItemRow = {
   id: string;

@@ -22,7 +22,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { deleteChinaImport } from "@/lib/actions/china-imports";
 import { ChinaImportForm, type EditableChinaImport } from "@/components/china-import-form";
 
-type Role = "ADMIN" | "SHARED";
+type Role = "ADMIN" | "SHARED" | "STAFF";
 
 type ChinaImportListItem = {
   id: string;

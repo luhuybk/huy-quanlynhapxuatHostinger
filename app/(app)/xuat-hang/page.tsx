@@ -2,26 +2,34 @@ export const dynamic = 'force-dynamic';
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import { getTransactions } from "@/lib/get-transactions";
+import { getTransactions, getTransactionCreators } from "@/lib/get-transactions";
 import { TransactionForm } from "@/components/transaction-form";
 import { TransactionList } from "@/components/transaction-list";
 import { TransactionFilters } from "@/components/date-range-filter";
+import type { Prisma } from "@prisma/client";
 
 export default async function ExportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; partnerId?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; partnerId?: string; createdById?: string }>;
 }) {
   const filters = await searchParams;
   const session = await auth();
   const role = session?.user.role ?? "SHARED";
+  const viewer = session?.user && { id: session.user.id, role };
 
-  const [transactions, agents, brands, skus] = await Promise.all([
-    getTransactions("EXPORT", filters),
-    prisma.agent.findMany({ orderBy: { name: "asc" } }),
-    prisma.brand.findMany({ orderBy: { name: "asc" } }),
+  // STAFF only sees/uses agents they own or shared (chung) agents — keeps
+  // other staff members' dealers and their exports out of view entirely.
+  const agentWhere: Prisma.AgentWhereInput | undefined =
+    role === "STAFF" ? { OR: [{ ownerId: null }, { ownerId: session!.user.id }] } : undefined;
+
+  const [transactions, creators, agents, brands, skus] = await Promise.all([
+    getTransactions("EXPORT", filters, viewer),
+    getTransactionCreators("EXPORT", viewer),
+    prisma.agent.findMany({ where: agentWhere, orderBy: { sortOrder: "asc" } }),
+    prisma.brand.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.sku.findMany({
-      orderBy: { name: "asc" },
+      orderBy: { sortOrder: "asc" },
       include: { brand: { select: { name: true } } },
     }),
   ]);
@@ -48,7 +56,7 @@ export default async function ExportPage({
           skus={skuOptions}
         />
       </div>
-      <TransactionFilters type="EXPORT" partners={agents} />
+      <TransactionFilters type="EXPORT" partners={agents} creators={creators} />
       <TransactionList
         type="EXPORT"
         role={role}

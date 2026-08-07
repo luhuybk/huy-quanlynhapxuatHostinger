@@ -29,7 +29,7 @@ import {
 import { TransactionForm, type EditableTransaction } from "@/components/transaction-form";
 import type { SkuOption } from "@/components/sku-picker";
 
-type Role = "ADMIN" | "SHARED";
+type Role = "ADMIN" | "SHARED" | "STAFF";
 
 type TransactionListItem = {
   id: string;

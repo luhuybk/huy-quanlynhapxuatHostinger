@@ -25,7 +25,9 @@ export async function createUser(formData: FormData) {
   if (!email) throw new Error("Vui lòng nhập email");
   if (!name) throw new Error("Vui lòng nhập tên");
   if (password.length < 6) throw new Error("Mật khẩu phải có ít nhất 6 ký tự");
-  if (role !== "ADMIN" && role !== "SHARED") throw new Error("Vai trò không hợp lệ");
+  if (role !== "ADMIN" && role !== "SHARED" && role !== "STAFF") {
+    throw new Error("Vai trò không hợp lệ");
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new Error("Email đã được sử dụng");
@@ -43,7 +45,9 @@ export async function updateUser(id: string, formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
   if (!name) throw new Error("Vui lòng nhập tên");
-  if (role !== "ADMIN" && role !== "SHARED") throw new Error("Vai trò không hợp lệ");
+  if (role !== "ADMIN" && role !== "SHARED" && role !== "STAFF") {
+    throw new Error("Vai trò không hợp lệ");
+  }
   if (id === session.user.id && role !== "ADMIN") {
     throw new Error("Không thể tự hạ quyền tài khoản của chính mình");
   }

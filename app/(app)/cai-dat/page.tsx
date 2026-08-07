@@ -15,17 +15,29 @@ import { SkuManager } from "@/components/settings/sku-manager";
 import { UserManager } from "@/components/settings/user-manager";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import type { Prisma } from "@prisma/client";
 
 export default async function SettingsPage() {
   const session = await auth();
   const isAdmin = session?.user.role === "ADMIN";
+  const isStaff = session?.user.role === "STAFF";
+
+  // STAFF only manages agents they own (or shared ones) — same scoping as
+  // the EXPORT transaction list in xuat-hang/page.tsx.
+  const agentWhere: Prisma.AgentWhereInput | undefined = isStaff
+    ? { OR: [{ ownerId: null }, { ownerId: session!.user.id }] }
+    : undefined;
 
   const [suppliers, agents, brands, skus, users] = await Promise.all([
-    prisma.supplier.findMany({ orderBy: { name: "asc" } }),
-    prisma.agent.findMany({ orderBy: { name: "asc" } }),
-    prisma.brand.findMany({ orderBy: { name: "asc" } }),
+    prisma.supplier.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.agent.findMany({
+      where: agentWhere,
+      orderBy: { sortOrder: "asc" },
+      include: { owner: { select: { name: true } } },
+    }),
+    prisma.brand.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.sku.findMany({
-      orderBy: { name: "asc" },
+      orderBy: { sortOrder: "asc" },
       include: { brand: { select: { name: true } } },
     }),
     isAdmin
@@ -63,7 +75,11 @@ export default async function SettingsPage() {
           <SupplierManager suppliers={suppliers} />
         </TabsContent>
         <TabsContent value="agent" className="mt-4">
-          <AgentManager agents={agents} />
+          <AgentManager
+            agents={agents}
+            owners={users.filter((u) => u.role === "STAFF")}
+            isAdmin={isAdmin}
+          />
         </TabsContent>
         <TabsContent value="brand" className="mt-4">
           <BrandManager brands={brands} />
@@ -71,7 +87,7 @@ export default async function SettingsPage() {
         {isAdmin && (
           <TabsContent value="users" className="mt-4">
             <UserManager
-              users={users as { id: string; email: string; name: string; role: "ADMIN" | "SHARED" }[]}
+              users={users as { id: string; email: string; name: string; role: "ADMIN" | "SHARED" | "STAFF" }[]}
               currentUserId={session!.user.id}
             />
           </TabsContent>

@@ -29,7 +29,7 @@ async function requireSession() {
   return session;
 }
 
-function requireAdmin(session: { user: { role: "ADMIN" | "SHARED" } }) {
+function requireAdmin(session: { user: { role: "ADMIN" | "SHARED" | "STAFF" } }) {
   if (session.user.role !== "ADMIN") {
     throw new Error("Tài khoản chung không có quyền thực hiện thao tác này");
   }
@@ -80,7 +80,7 @@ async function resolveSkuId(
 // and every header-level status flag stay ADMIN-only.
 function sanitizeItemsForRole(
   items: TransactionItemInput[],
-  role: "ADMIN" | "SHARED"
+  role: "ADMIN" | "SHARED" | "STAFF"
 ): TransactionItemInput[] {
   if (role === "ADMIN") return items;
   return items.map((item) => ({ ...item, matchedDebt: false }));

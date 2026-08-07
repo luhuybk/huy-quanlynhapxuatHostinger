@@ -50,7 +50,7 @@ type Row = {
 
 type Brand = { id: string; name: string };
 type Partner = { id: string; name: string };
-type Role = "ADMIN" | "SHARED";
+type Role = "ADMIN" | "SHARED" | "STAFF";
 
 export type EditableTransaction = {
   id: string;

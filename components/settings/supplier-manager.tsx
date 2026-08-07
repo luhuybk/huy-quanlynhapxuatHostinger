@@ -5,14 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +19,10 @@ import {
   createSupplier,
   updateSupplier,
   deleteSupplier,
+  reorderSuppliers,
 } from "@/lib/actions/catalog";
+import { SortableTable } from "@/components/settings/sortable-table";
+import { SortableRow } from "@/components/settings/sortable-row";
 
 type Supplier = { id: string; name: string; note: string | null };
 
@@ -34,6 +30,12 @@ export function SupplierManager({ suppliers }: { suppliers: Supplier[] }) {
   const [isPending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
+  const [items, setItems] = useState(suppliers);
+  const [prevSuppliers, setPrevSuppliers] = useState(suppliers);
+  if (suppliers !== prevSuppliers) {
+    setPrevSuppliers(suppliers);
+    setItems(suppliers);
+  }
 
   function handleCreate(formData: FormData) {
     startTransition(async () => {
@@ -70,6 +72,13 @@ export function SupplierManager({ suppliers }: { suppliers: Supplier[] }) {
     });
   }
 
+  function handleReorder(reordered: Supplier[]) {
+    setItems(reordered);
+    startTransition(async () => {
+      await reorderSuppliers(reordered.map((s) => s.id));
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -102,52 +111,50 @@ export function SupplierManager({ suppliers }: { suppliers: Supplier[] }) {
         </Dialog>
       </div>
 
-      <Table>
-        <TableHeader>
+      <SortableTable
+        id="supplier-manager"
+        items={items}
+        onReorder={handleReorder}
+        header={
           <TableRow>
+            <TableHead className="w-10" />
             <TableHead>Tên nhà cung cấp</TableHead>
             <TableHead>Ghi chú</TableHead>
             <TableHead className="w-24" />
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {suppliers.map((s) => (
-            <TableRow key={s.id}>
-              <TableCell>{s.name}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {s.note}
-              </TableCell>
-              <TableCell className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setEditing(s)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={() => handleDelete(s.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-          {suppliers.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={3}
-                className="text-center text-muted-foreground"
-              >
-                Chưa có nhà cung cấp nào
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+        }
+      >
+        {(sorted) => (
+          <>
+            {sorted.map((s) => (
+              <SortableRow key={s.id} id={s.id}>
+                <TableCell>{s.name}</TableCell>
+                <TableCell className="text-muted-foreground">{s.note}</TableCell>
+                <TableCell className="flex gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => setEditing(s)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending}
+                    onClick={() => handleDelete(s.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </SortableRow>
+            ))}
+            {sorted.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  Chưa có nhà cung cấp nào
+                </TableCell>
+              </TableRow>
+            )}
+          </>
+        )}
+      </SortableTable>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
@@ -161,20 +168,11 @@ export function SupplierManager({ suppliers }: { suppliers: Supplier[] }) {
             >
               <div className="flex flex-col gap-2">
                 <Label htmlFor="edit-name">Tên nhà cung cấp</Label>
-                <Input
-                  id="edit-name"
-                  name="name"
-                  defaultValue={editing.name}
-                  required
-                />
+                <Input id="edit-name" name="name" defaultValue={editing.name} required />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="edit-note">Ghi chú</Label>
-                <Input
-                  id="edit-note"
-                  name="note"
-                  defaultValue={editing.note ?? ""}
-                />
+                <Input id="edit-note" name="note" defaultValue={editing.note ?? ""} />
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isPending}>

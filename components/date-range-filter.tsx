@@ -15,9 +15,11 @@ import {
 export function TransactionFilters({
   type,
   partners,
+  creators,
 }: {
   type: "IMPORT" | "EXPORT";
   partners: { id: string; name: string }[];
+  creators?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -26,6 +28,7 @@ export function TransactionFilters({
   const from = searchParams.get("from") ?? "";
   const to = searchParams.get("to") ?? "";
   const partnerId = searchParams.get("partnerId") ?? "";
+  const createdById = searchParams.get("createdById") ?? "";
   const partnerLabel = type === "IMPORT" ? "Đối tác" : "Đại lý";
 
   function setParam(key: string, value: string) {
@@ -35,7 +38,7 @@ export function TransactionFilters({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  const hasFilters = from || to || partnerId;
+  const hasFilters = from || to || partnerId || createdById;
 
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -78,6 +81,27 @@ export function TransactionFilters({
           </SelectContent>
         </Select>
       </div>
+      {creators && creators.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <Label>Người tạo</Label>
+          <Select
+            value={createdById || "all"}
+            onValueChange={(v) => setParam("createdById", v === "all" ? "" : v)}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Tất cả người tạo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả người tạo</SelectItem>
+              {creators.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {hasFilters && (
         <Button variant="ghost" onClick={() => router.push(pathname)}>
           Xoá lọc

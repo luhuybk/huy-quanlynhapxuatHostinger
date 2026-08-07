@@ -1,15 +1,22 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
-export async function getTransactions(
+type Viewer = { id: string; role: "ADMIN" | "SHARED" | "STAFF" };
+type TransactionFilters = {
+  from?: string;
+  to?: string;
+  partnerId?: string;
+  createdById?: string;
+};
+
+function buildTransactionWhere(
   type: "IMPORT" | "EXPORT",
-  filters: { from?: string; to?: string; partnerId?: string }
-) {
-  const where: {
-    type: "IMPORT" | "EXPORT";
-    date?: { gte?: Date; lte?: Date };
-    supplierId?: string;
-    agentId?: string;
-  } = { type };
+  filters: TransactionFilters,
+  // STAFF only sees EXPORT transactions for agents they own or shared (chung)
+  // agents — see Agent.ownerId in prisma/schema.prisma. Import stays unscoped.
+  viewer?: Viewer
+): Prisma.TransactionWhereInput {
+  const where: Prisma.TransactionWhereInput = { type };
 
   if (filters.from || filters.to) {
     where.date = {};
@@ -26,8 +33,22 @@ export async function getTransactions(
     else where.agentId = filters.partnerId;
   }
 
+  if (filters.createdById) where.createdById = filters.createdById;
+
+  if (type === "EXPORT" && viewer?.role === "STAFF") {
+    where.agent = { OR: [{ ownerId: null }, { ownerId: viewer.id }] };
+  }
+
+  return where;
+}
+
+export async function getTransactions(
+  type: "IMPORT" | "EXPORT",
+  filters: TransactionFilters,
+  viewer?: Viewer
+) {
   return prisma.transaction.findMany({
-    where,
+    where: buildTransactionWhere(type, filters, viewer),
     orderBy: { date: "desc" },
     include: {
       supplier: { select: { name: true } },
@@ -42,4 +63,18 @@ export async function getTransactions(
       },
     },
   });
+}
+
+// Distinct list of users who created a transaction of this type, scoped the
+// same way as getTransactions (minus the date/partner/createdById filters,
+// so the filter dropdown itself stays stable while other filters change).
+export async function getTransactionCreators(type: "IMPORT" | "EXPORT", viewer?: Viewer) {
+  const rows = await prisma.transaction.findMany({
+    where: buildTransactionWhere(type, {}, viewer),
+    distinct: ["createdById"],
+    select: { createdBy: { select: { id: true, name: true } } },
+  });
+  return rows
+    .map((r) => r.createdBy)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

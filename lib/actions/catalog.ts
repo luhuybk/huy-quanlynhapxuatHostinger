@@ -8,6 +8,7 @@ import { auth } from "@/auth";
 async function requireAuth() {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
+  return session;
 }
 
 // --- Supplier ---
@@ -38,32 +39,93 @@ export async function deleteSupplier(id: string) {
   revalidatePath("/cai-dat");
 }
 
+export async function reorderSuppliers(orderedIds: string[]) {
+  await requireAuth();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      prisma.supplier.update({ where: { id }, data: { sortOrder: index } })
+    )
+  );
+  revalidatePath("/cai-dat");
+  revalidatePath("/nhap-hang");
+}
+
 // --- Agent (đại lý) ---
+//
+// ownerId scopes visibility: null = shared (chung), visible to everyone.
+// A STAFF-owned agent (and its EXPORT transactions) is only visible to that
+// staff member — see the ownerId filters in app/(app)/{cai-dat,xuat-hang}/page.tsx.
+// Only ADMIN can assign/reassign an owner; STAFF always creates/owns agents
+// as themselves; SHARED creates shared (ownerId null) agents.
+
+// The owner <Select> submits "none" for "Chung" since Radix Select can't use
+// an empty string as an item value.
+function parseOwnerId(formData: FormData): string | null {
+  const raw = String(formData.get("ownerId") ?? "").trim();
+  return raw && raw !== "none" ? raw : null;
+}
 
 export async function createAgent(formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Tên đại lý không được để trống");
   const note = String(formData.get("note") ?? "").trim() || null;
 
-  await prisma.agent.create({ data: { name, note } });
+  let ownerId: string | null = null;
+  if (session.user.role === "STAFF") {
+    ownerId = session.user.id;
+  } else if (session.user.role === "ADMIN") {
+    ownerId = parseOwnerId(formData);
+  }
+
+  await prisma.agent.create({ data: { name, note, ownerId } });
   revalidatePath("/cai-dat");
+  revalidatePath("/xuat-hang");
 }
 
 export async function updateAgent(id: string, formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
+  const existing = await prisma.agent.findUniqueOrThrow({ where: { id } });
+  if (session.user.role === "STAFF" && existing.ownerId !== session.user.id) {
+    throw new Error("Bạn không có quyền sửa đại lý này");
+  }
+
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Tên đại lý không được để trống");
   const note = String(formData.get("note") ?? "").trim() || null;
 
-  await prisma.agent.update({ where: { id }, data: { name, note } });
+  const data: { name: string; note: string | null; ownerId?: string | null } = { name, note };
+  if (session.user.role === "ADMIN" && formData.has("ownerId")) {
+    data.ownerId = parseOwnerId(formData);
+  }
+
+  await prisma.agent.update({ where: { id }, data });
   revalidatePath("/cai-dat");
+  revalidatePath("/xuat-hang");
 }
 
 export async function deleteAgent(id: string) {
-  await requireAuth();
+  const session = await requireAuth();
+  if (session.user.role === "STAFF") {
+    const existing = await prisma.agent.findUniqueOrThrow({ where: { id } });
+    if (existing.ownerId !== session.user.id) {
+      throw new Error("Bạn không có quyền xoá đại lý này");
+    }
+  }
   await prisma.agent.delete({ where: { id } });
   revalidatePath("/cai-dat");
+  revalidatePath("/xuat-hang");
+}
+
+export async function reorderAgents(orderedIds: string[]) {
+  await requireAuth();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      prisma.agent.update({ where: { id }, data: { sortOrder: index } })
+    )
+  );
+  revalidatePath("/cai-dat");
+  revalidatePath("/xuat-hang");
 }
 
 // --- Brand ---
@@ -90,6 +152,18 @@ export async function deleteBrand(id: string) {
   await requireAuth();
   await prisma.brand.delete({ where: { id } });
   revalidatePath("/cai-dat");
+}
+
+export async function reorderBrands(orderedIds: string[]) {
+  await requireAuth();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      prisma.brand.update({ where: { id }, data: { sortOrder: index } })
+    )
+  );
+  revalidatePath("/cai-dat");
+  revalidatePath("/nhap-hang");
+  revalidatePath("/xuat-hang");
 }
 
 // --- Sku ---
@@ -157,6 +231,18 @@ export async function updateSku(id: string, formData: FormData) {
 export async function deleteSku(id: string) {
   await requireAuth();
   await prisma.sku.delete({ where: { id } });
+  revalidatePath("/cai-dat");
+  revalidatePath("/nhap-hang");
+  revalidatePath("/xuat-hang");
+}
+
+export async function reorderSkus(orderedIds: string[]) {
+  await requireAuth();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      prisma.sku.update({ where: { id }, data: { sortOrder: index } })
+    )
+  );
   revalidatePath("/cai-dat");
   revalidatePath("/nhap-hang");
   revalidatePath("/xuat-hang");

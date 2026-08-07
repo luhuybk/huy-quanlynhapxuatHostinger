@@ -14,14 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +24,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { createSku, updateSku, deleteSku } from "@/lib/actions/catalog";
+import { createSku, updateSku, deleteSku, reorderSkus } from "@/lib/actions/catalog";
+import { SortableTable } from "@/components/settings/sortable-table";
+import { SortableRow } from "@/components/settings/sortable-row";
 
 type Sku = {
   id: string;
@@ -137,6 +132,12 @@ export function SkuManager({
   const [isPending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Sku | null>(null);
+  const [items, setItems] = useState(skus);
+  const [prevSkus, setPrevSkus] = useState(skus);
+  if (skus !== prevSkus) {
+    setPrevSkus(skus);
+    setItems(skus);
+  }
 
   function handleCreate(formData: FormData) {
     startTransition(async () => {
@@ -173,6 +174,13 @@ export function SkuManager({
     });
   }
 
+  function handleReorder(reordered: Sku[]) {
+    setItems(reordered);
+    startTransition(async () => {
+      await reorderSkus(reordered.map((s) => s.id));
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -199,9 +207,14 @@ export function SkuManager({
       </div>
 
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-      <Table className="min-w-[640px]">
-        <TableHeader>
+      <SortableTable
+        id="sku-manager"
+        items={items}
+        onReorder={handleReorder}
+        className="min-w-[720px]"
+        header={
           <TableRow>
+            <TableHead className="w-10" />
             <TableHead>Mã SKU</TableHead>
             <TableHead>Brand</TableHead>
             <TableHead>Tên sản phẩm</TableHead>
@@ -209,48 +222,44 @@ export function SkuManager({
             <TableHead>Tạo nhanh</TableHead>
             <TableHead className="w-24" />
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {skus.map((s) => (
-            <TableRow key={s.id}>
-              <TableCell className="font-mono text-xs">{s.code}</TableCell>
-              <TableCell>{s.brand.name}</TableCell>
-              <TableCell>{s.name}</TableCell>
-              <TableCell>1 thùng = {s.unitsPerCase} sp</TableCell>
-              <TableCell>
-                {s.isQuickCreate && <Badge variant="secondary">Nhanh</Badge>}
-              </TableCell>
-              <TableCell className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setEditing(s)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={() => handleDelete(s.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-          {skus.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={6}
-                className="text-center text-muted-foreground"
-              >
-                Chưa có SKU nào
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+        }
+      >
+        {(sorted) => (
+          <>
+            {sorted.map((s) => (
+              <SortableRow key={s.id} id={s.id}>
+                <TableCell className="font-mono text-xs">{s.code}</TableCell>
+                <TableCell>{s.brand.name}</TableCell>
+                <TableCell>{s.name}</TableCell>
+                <TableCell>1 thùng = {s.unitsPerCase} sp</TableCell>
+                <TableCell>
+                  {s.isQuickCreate && <Badge variant="secondary">Nhanh</Badge>}
+                </TableCell>
+                <TableCell className="flex gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => setEditing(s)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending}
+                    onClick={() => handleDelete(s.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </SortableRow>
+            ))}
+            {sorted.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  Chưa có SKU nào
+                </TableCell>
+              </TableRow>
+            )}
+          </>
+        )}
+      </SortableTable>
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
