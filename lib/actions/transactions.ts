@@ -111,8 +111,10 @@ export async function createTransaction(
   if (Number.isNaN(date.getTime())) throw new Error("Ngày không hợp lệ");
 
   // Header status flags are ADMIN-only at creation time, except
-  // "Đã xuất hàng" (EXPORT) which SHARED accounts may also set.
+  // "Đã xuất hàng" (EXPORT) and "Nhập kho" (IMPORT) which SHARED accounts
+  // may also set.
   const paidDebt = role === "ADMIN" && formData.get("paidDebt") === "on";
+  const receivedWarehouse = formData.get("receivedWarehouse") === "on";
   const goodsShipped = formData.get("goodsShipped") === "on";
   const paid = role === "ADMIN" && formData.get("paid") === "on";
   const settled = role === "ADMIN" && formData.get("settled") === "on";
@@ -130,6 +132,7 @@ export async function createTransaction(
         note,
         createdById: session.user.id,
         paidDebt,
+        receivedWarehouse,
         goodsShipped,
         paid,
         settled,
@@ -184,6 +187,7 @@ export async function updateTransaction(
   if (Number.isNaN(date.getTime())) throw new Error("Ngày không hợp lệ");
 
   const paidDebt = formData.get("paidDebt") === "on";
+  const receivedWarehouse = formData.get("receivedWarehouse") === "on";
   const goodsShipped = formData.get("goodsShipped") === "on";
   const paid = formData.get("paid") === "on";
   const settled = formData.get("settled") === "on";
@@ -197,6 +201,7 @@ export async function updateTransaction(
         agentId: type === "EXPORT" ? agentId : null,
         note,
         paidDebt,
+        receivedWarehouse,
         goodsShipped,
         paid,
         settled,
@@ -253,6 +258,7 @@ export async function updateTransactionFlags(
   type: "IMPORT" | "EXPORT",
   data: {
     paidDebt?: boolean;
+    receivedWarehouse?: boolean;
     goodsShipped?: boolean;
     paid?: boolean;
     settled?: boolean;
@@ -262,11 +268,13 @@ export async function updateTransactionFlags(
 
   if (session.user.role === "SHARED") {
     const keys = Object.keys(data);
-    const onlyGoodsShipped =
-      type === "EXPORT" && keys.every((k) => k === "goodsShipped");
-    if (!onlyGoodsShipped) {
+    const allowedKey = type === "EXPORT" ? "goodsShipped" : "receivedWarehouse";
+    const onlyAllowedKey = keys.every((k) => k === allowedKey);
+    if (!onlyAllowedKey) {
       throw new Error(
-        "Tài khoản chung chỉ được phép tick 'Đã xuất hàng' bên xuất kho"
+        type === "EXPORT"
+          ? "Tài khoản chung chỉ được phép tick 'Đã xuất hàng' bên xuất kho"
+          : "Tài khoản chung chỉ được phép tick 'Nhập kho' bên nhập kho"
       );
     }
   }

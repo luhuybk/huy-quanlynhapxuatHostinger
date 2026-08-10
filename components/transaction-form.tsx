@@ -58,6 +58,7 @@ export type EditableTransaction = {
   partnerId: string;
   note: string | null;
   paidDebt: boolean;
+  receivedWarehouse: boolean;
   goodsShipped: boolean;
   paid: boolean;
   settled: boolean;
@@ -151,6 +152,9 @@ export function TransactionForm({
     editingTransaction ? rowsFromTransaction(editingTransaction) : [emptyRow()]
   );
   const [paidDebt, setPaidDebt] = useState(editingTransaction?.paidDebt ?? false);
+  const [receivedWarehouse, setReceivedWarehouse] = useState(
+    editingTransaction?.receivedWarehouse ?? false
+  );
   const [goodsShipped, setGoodsShipped] = useState(
     editingTransaction?.goodsShipped ?? false
   );
@@ -176,6 +180,7 @@ export function TransactionForm({
       setNote(editingTransaction.note ?? "");
       setRows(rowsFromTransaction(editingTransaction));
       setPaidDebt(editingTransaction.paidDebt);
+      setReceivedWarehouse(editingTransaction.receivedWarehouse);
       setGoodsShipped(editingTransaction.goodsShipped);
       setPaid(editingTransaction.paid);
       setSettled(editingTransaction.settled);
@@ -185,6 +190,7 @@ export function TransactionForm({
       setNote("");
       setRows([emptyRow()]);
       setPaidDebt(false);
+      setReceivedWarehouse(false);
       setGoodsShipped(false);
       setPaid(false);
       setSettled(false);
@@ -223,6 +229,7 @@ export function TransactionForm({
     else formData.set("agentId", partnerId);
     formData.set("note", note);
     if (paidDebt) formData.set("paidDebt", "on");
+    if (receivedWarehouse) formData.set("receivedWarehouse", "on");
     if (goodsShipped) formData.set("goodsShipped", "on");
     if (paid) formData.set("paid", "on");
     if (settled) formData.set("settled", "on");
@@ -313,16 +320,28 @@ export function TransactionForm({
           </div>
 
           {type === "IMPORT" ? (
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="paidDebt"
-                checked={paidDebt}
-                disabled={!isAdmin}
-                onCheckedChange={(c) => setPaidDebt(c === true)}
-              />
-              <Label htmlFor="paidDebt" className="font-normal">
-                Đã TT Công nợ
-              </Label>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="receivedWarehouse"
+                  checked={receivedWarehouse}
+                  onCheckedChange={(c) => setReceivedWarehouse(c === true)}
+                />
+                <Label htmlFor="receivedWarehouse" className="font-normal">
+                  Nhập kho
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="paidDebt"
+                  checked={paidDebt}
+                  disabled={!isAdmin}
+                  onCheckedChange={(c) => setPaidDebt(c === true)}
+                />
+                <Label htmlFor="paidDebt" className="font-normal">
+                  Đã TT Công nợ
+                </Label>
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-6">

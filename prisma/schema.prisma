@@ -92,8 +92,9 @@ model Transaction {
   createdById String
   createdAt   DateTime @default(now())
 
-  // IMPORT-only status flag
-  paidDebt Boolean @default(false)
+  // IMPORT-only status flags
+  paidDebt          Boolean @default(false)
+  receivedWarehouse Boolean @default(false)
 
   // EXPORT-only status flags
   goodsShipped Boolean @default(false)

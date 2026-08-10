@@ -40,6 +40,7 @@ type TransactionListItem = {
   agent: { name: string } | null;
   createdBy: { name: string };
   paidDebt: boolean;
+  receivedWarehouse: boolean;
   goodsShipped: boolean;
   paid: boolean;
   settled: boolean;
@@ -126,7 +127,7 @@ export function TransactionList({
 
   function toggleHeaderFlag(
     id: string,
-    key: "paidDebt" | "goodsShipped" | "paid" | "settled",
+    key: "paidDebt" | "receivedWarehouse" | "goodsShipped" | "paid" | "settled",
     currentValue: boolean
   ) {
     startTransition(async () => {
@@ -162,6 +163,7 @@ export function TransactionList({
             : agents?.find((a) => a.name === editing.agent?.name)?.id ?? "",
         note: editing.note,
         paidDebt: editing.paidDebt,
+        receivedWarehouse: editing.receivedWarehouse,
         goodsShipped: editing.goodsShipped,
         paid: editing.paid,
         settled: editing.settled,
@@ -191,6 +193,7 @@ export function TransactionList({
                 <>
                   <TableHead>Khớp SL</TableHead>
                   <TableHead>Khớp công nợ</TableHead>
+                  <TableHead>Nhập kho</TableHead>
                   <TableHead>Đã TT CN</TableHead>
                 </>
               ) : (
@@ -220,6 +223,11 @@ export function TransactionList({
                     </TableCell>
                     <TableCell>
                       <MatchSummary items={t.items} field="matchedDebt" />
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={t.receivedWarehouse ? "secondary" : "outline"}>
+                        {t.receivedWarehouse ? "Đã nhập" : "Chưa"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={t.paidDebt ? "secondary" : "outline"}>
@@ -309,15 +317,31 @@ export function TransactionList({
               </div>
 
               {type === "IMPORT" ? (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={detail.paidDebt}
-                    disabled={isPending || !isAdmin}
-                    onCheckedChange={() =>
-                      toggleHeaderFlag(detail.id, "paidDebt", detail.paidDebt)
-                    }
-                  />
-                  <span className="text-sm">Đã TT Công nợ</span>
+                <div className="flex flex-wrap items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={detail.receivedWarehouse}
+                      disabled={isPending}
+                      onCheckedChange={() =>
+                        toggleHeaderFlag(
+                          detail.id,
+                          "receivedWarehouse",
+                          detail.receivedWarehouse
+                        )
+                      }
+                    />
+                    <span className="text-sm">Nhập kho</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={detail.paidDebt}
+                      disabled={isPending || !isAdmin}
+                      onCheckedChange={() =>
+                        toggleHeaderFlag(detail.id, "paidDebt", detail.paidDebt)
+                      }
+                    />
+                    <span className="text-sm">Đã TT Công nợ</span>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-6">

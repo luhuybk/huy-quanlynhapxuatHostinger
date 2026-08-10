@@ -77,6 +77,7 @@ export async function GET() {
       "SL quy đổi": it.quantityUnits,
       "Khớp SL": it.matchedQuantity ? "Có" : "Không",
       "Khớp CN": it.matchedDebt ? "Có" : "Không",
+      "Nhập kho": t.receivedWarehouse ? "Có" : "Không",
       "Đã TT công nợ": t.paidDebt ? "Có" : "Không",
       "Đã xuất hàng": t.goodsShipped ? "Có" : "Không",
       "Đã thanh toán": t.paid ? "Có" : "Không",
