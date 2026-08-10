@@ -13,6 +13,7 @@ import { AgentManager } from "@/components/settings/agent-manager";
 import { BrandManager } from "@/components/settings/brand-manager";
 import { SkuManager } from "@/components/settings/sku-manager";
 import { UserManager } from "@/components/settings/user-manager";
+import { ImportBackupDialog } from "@/components/settings/import-backup-dialog";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import type { Prisma } from "@prisma/client";
@@ -53,11 +54,14 @@ export default async function SettingsPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Cài đặt</h1>
         {isAdmin && (
-          <Button variant="outline" asChild>
-            <a href="/api/export" download>
-              <Download className="h-4 w-4" /> Xuất dữ liệu backup
-            </a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <a href="/api/export" download>
+                <Download className="h-4 w-4" /> Xuất dữ liệu backup
+              </a>
+            </Button>
+            <ImportBackupDialog />
+          </div>
         )}
       </div>
       <Tabs defaultValue="sku">
