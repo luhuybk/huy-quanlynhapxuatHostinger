@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { generateSkuCode } from "@/lib/codegen";
+import { nextSortOrder } from "@/lib/sort-order";
 import { auth } from "@/auth";
 
 async function requireAuth() {
@@ -19,7 +20,9 @@ export async function createSupplier(formData: FormData) {
   if (!name) throw new Error("Tên nhà cung cấp không được để trống");
   const note = String(formData.get("note") ?? "").trim() || null;
 
-  await prisma.supplier.create({ data: { name, note } });
+  await prisma.supplier.create({
+    data: { name, note, sortOrder: await nextSortOrder("supplier") },
+  });
   revalidatePath("/cai-dat");
 }
 
@@ -78,7 +81,9 @@ export async function createAgent(formData: FormData) {
     ownerId = parseOwnerId(formData);
   }
 
-  await prisma.agent.create({ data: { name, note, ownerId } });
+  await prisma.agent.create({
+    data: { name, note, ownerId, sortOrder: await nextSortOrder("agent") },
+  });
   revalidatePath("/cai-dat");
   revalidatePath("/xuat-hang");
 }
@@ -135,7 +140,9 @@ export async function createBrand(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Tên brand không được để trống");
 
-  await prisma.brand.create({ data: { name } });
+  await prisma.brand.create({
+    data: { name, sortOrder: await nextSortOrder("brand") },
+  });
   revalidatePath("/cai-dat");
 }
 
@@ -198,6 +205,7 @@ export async function createSku(formData: FormData) {
       unitsPerCase,
       supplierId,
       isQuickCreate,
+      sortOrder: await nextSortOrder("sku"),
     },
   });
   revalidatePath("/cai-dat");
@@ -267,7 +275,7 @@ export async function findOrCreateSkuByName(
   const code = await generateSkuCode(brand.name);
 
   const created = await prisma.sku.create({
-    data: { code, name: trimmedName, brandId, unitsPerCase: 1 },
+    data: { code, name: trimmedName, brandId, unitsPerCase: 1, sortOrder: await nextSortOrder("sku") },
   });
   revalidatePath("/cai-dat");
   return created;

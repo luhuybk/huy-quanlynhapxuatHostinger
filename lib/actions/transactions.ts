@@ -65,12 +65,14 @@ async function resolveSkuId(
 
   const brand = await tx.brand.findUniqueOrThrow({ where: { id: item.brandId } });
   const newCode = await generateSkuCode(brand.name);
+  const { _max } = await tx.sku.aggregate({ _max: { sortOrder: true } });
   const created = await tx.sku.create({
     data: {
       code: newCode,
       name: item.skuName.trim(),
       brandId: item.brandId,
       unitsPerCase: 1,
+      sortOrder: (_max.sortOrder ?? -1) + 1,
     },
   });
   return { skuId: created.id, unitsPerCase: 1 };
