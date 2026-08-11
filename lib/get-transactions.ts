@@ -7,6 +7,7 @@ type TransactionFilters = {
   to?: string;
   partnerId?: string;
   createdById?: string;
+  agentOwnerId?: string;
 };
 
 function buildTransactionWhere(
@@ -35,8 +36,19 @@ function buildTransactionWhere(
 
   if (filters.createdById) where.createdById = filters.createdById;
 
+  // "Đại lý của nhân viên" filter — lọc theo chủ sở hữu đại lý (tách biệt với
+  // "Người tạo", vì ai cũng có thể tạo phiếu xuất cho đại lý của người khác).
+  const agentConditions: Prisma.AgentWhereInput[] = [];
   if (type === "EXPORT" && viewer?.role === "STAFF") {
-    where.agent = { OR: [{ ownerId: null }, { ownerId: viewer.id }] };
+    agentConditions.push({ OR: [{ ownerId: null }, { ownerId: viewer.id }] });
+  }
+  if (type === "EXPORT" && filters.agentOwnerId) {
+    agentConditions.push({ ownerId: filters.agentOwnerId });
+  }
+  if (agentConditions.length === 1) {
+    where.agent = agentConditions[0];
+  } else if (agentConditions.length > 1) {
+    where.agent = { AND: agentConditions };
   }
 
   return where;

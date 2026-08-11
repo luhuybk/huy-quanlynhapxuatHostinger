@@ -16,10 +16,12 @@ export function TransactionFilters({
   type,
   partners,
   creators,
+  staffOwners,
 }: {
   type: "IMPORT" | "EXPORT";
   partners: { id: string; name: string }[];
   creators?: { id: string; name: string }[];
+  staffOwners?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,6 +31,7 @@ export function TransactionFilters({
   const to = searchParams.get("to") ?? "";
   const partnerId = searchParams.get("partnerId") ?? "";
   const createdById = searchParams.get("createdById") ?? "";
+  const agentOwnerId = searchParams.get("agentOwnerId") ?? "";
   const partnerLabel = type === "IMPORT" ? "Đối tác" : "Đại lý";
 
   function setParam(key: string, value: string) {
@@ -38,7 +41,7 @@ export function TransactionFilters({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  const hasFilters = from || to || partnerId || createdById;
+  const hasFilters = from || to || partnerId || createdById || agentOwnerId;
 
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -96,6 +99,27 @@ export function TransactionFilters({
               {creators.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {staffOwners && staffOwners.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <Label>Đại lý của nhân viên</Label>
+          <Select
+            value={agentOwnerId || "all"}
+            onValueChange={(v) => setParam("agentOwnerId", v === "all" ? "" : v)}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Tất cả nhân viên" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả nhân viên</SelectItem>
+              {staffOwners.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -11,7 +11,13 @@ import type { Prisma } from "@prisma/client";
 export default async function ExportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; partnerId?: string; createdById?: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    partnerId?: string;
+    createdById?: string;
+    agentOwnerId?: string;
+  }>;
 }) {
   const filters = await searchParams;
   const session = await auth();
@@ -23,7 +29,7 @@ export default async function ExportPage({
   const agentWhere: Prisma.AgentWhereInput | undefined =
     role === "STAFF" ? { OR: [{ ownerId: null }, { ownerId: session!.user.id }] } : undefined;
 
-  const [transactions, creators, agents, brands, skus] = await Promise.all([
+  const [transactions, creators, agents, brands, skus, staffOwners] = await Promise.all([
     getTransactions("EXPORT", filters, viewer),
     getTransactionCreators("EXPORT", viewer),
     prisma.agent.findMany({ where: agentWhere, orderBy: { sortOrder: "asc" } }),
@@ -31,6 +37,11 @@ export default async function ExportPage({
     prisma.sku.findMany({
       orderBy: { sortOrder: "asc" },
       include: { brand: { select: { name: true } } },
+    }),
+    prisma.user.findMany({
+      where: { role: "STAFF" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
     }),
   ]);
 
@@ -56,7 +67,12 @@ export default async function ExportPage({
           skus={skuOptions}
         />
       </div>
-      <TransactionFilters type="EXPORT" partners={agents} creators={creators} />
+      <TransactionFilters
+        type="EXPORT"
+        partners={agents}
+        creators={creators}
+        staffOwners={staffOwners}
+      />
       <TransactionList
         type="EXPORT"
         role={role}
