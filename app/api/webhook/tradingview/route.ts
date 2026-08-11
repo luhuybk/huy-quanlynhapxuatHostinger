@@ -9,11 +9,11 @@ export async function POST(request: Request) {
     }
 
     let message_thread_id: string | undefined;
-    if (text.includes("[Khung H3]")) {
+    if (text.includes("[3H]")) {
       message_thread_id = process.env.THREAD_ID_H3;
-    } else if (text.includes("[Khung D]")) {
+    } else if (text.includes("[D]")) {
       message_thread_id = process.env.THREAD_ID_D;
-    } else if (text.includes("[Khung H8]")) {
+    } else if (text.includes("[8H]")) {
       message_thread_id = process.env.THREAD_ID_H8;
     }
 
