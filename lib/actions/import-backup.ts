@@ -144,26 +144,6 @@ export async function importBackup(formData: FormData): Promise<ImportSummary> {
     summary.suppliers.created++;
   }
 
-  // --- Đại lý (Agent) — backup không lưu chủ sở hữu nên phục hồi về "Chung" ---
-  const agentByName = new Map<string, string>();
-  for (const a of await prisma.agent.findMany({ select: { id: true, name: true } })) {
-    if (!agentByName.has(a.name)) agentByName.set(a.name, a.id);
-  }
-  for (const row of sheetRows(wb, "Dai ly")) {
-    const name = str(row, "Đại lý");
-    if (!name) continue;
-    if (agentByName.has(name)) {
-      summary.agents.matched++;
-      continue;
-    }
-    const note = str(row, "Ghi chú") || null;
-    const created = await prisma.agent.create({
-      data: { name, note, sortOrder: await nextSortOrder("agent") },
-    });
-    agentByName.set(name, created.id);
-    summary.agents.created++;
-  }
-
   // --- SKU (mã SKU là duy nhất -> upsert) ---
   const skuByCode = new Map<string, string>();
   for (const row of sheetRows(wb, "SKU")) {
@@ -232,6 +212,36 @@ export async function importBackup(formData: FormData): Promise<ImportSummary> {
     if (!userByName.has(name)) userByName.set(name, created.id);
     summary.users.created++;
     summary.users.tempPasswords.push({ email, password });
+  }
+
+  // --- Đại lý (Agent) — "Chủ sở hữu" trong backup ghi tên nhân viên hoặc "Chung" ---
+  const agentByName = new Map<string, string>();
+  for (const a of await prisma.agent.findMany({ select: { id: true, name: true } })) {
+    if (!agentByName.has(a.name)) agentByName.set(a.name, a.id);
+  }
+  for (const row of sheetRows(wb, "Dai ly")) {
+    const name = str(row, "Đại lý");
+    if (!name) continue;
+    if (agentByName.has(name)) {
+      summary.agents.matched++;
+      continue;
+    }
+    const note = str(row, "Ghi chú") || null;
+    const ownerName = str(row, "Chủ sở hữu");
+    let ownerId: string | null = null;
+    if (ownerName && ownerName !== "Chung") {
+      ownerId = userByName.get(ownerName) ?? null;
+      if (!ownerId) {
+        summary.warnings.push(
+          `Đại lý "${name}": không tìm thấy chủ sở hữu "${ownerName}", để "Chung"`
+        );
+      }
+    }
+    const created = await prisma.agent.create({
+      data: { name, note, ownerId, sortOrder: await nextSortOrder("agent") },
+    });
+    agentByName.set(name, created.id);
+    summary.agents.created++;
   }
 
   // --- Phiếu nhập/xuất hàng ---

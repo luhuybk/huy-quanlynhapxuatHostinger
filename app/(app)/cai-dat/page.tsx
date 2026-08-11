@@ -57,7 +57,12 @@ export default async function SettingsPage() {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
               <a href="/api/export" download>
-                <Download className="h-4 w-4" /> Xuất dữ liệu backup
+                <Download className="h-4 w-4" /> Xuất dữ liệu backup (Excel)
+              </a>
+            </Button>
+            <Button variant="outline" asChild>
+              <a href="/api/backup-json" download>
+                <Download className="h-4 w-4" /> Xuất backup đầy đủ (khôi phục chính xác)
               </a>
             </Button>
             <ImportBackupDialog />

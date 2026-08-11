@@ -33,7 +33,7 @@ export async function GET() {
       orderBy: { date: "desc" },
       include: {
         supplier: { select: { name: true } },
-        agent: { select: { name: true } },
+        agent: { select: { name: true, owner: { select: { name: true } } } },
         createdBy: { select: { name: true } },
         items: { include: { sku: { select: { code: true, name: true } } } },
       },
@@ -55,7 +55,10 @@ export async function GET() {
     }),
     prisma.brand.findMany({ orderBy: { name: "asc" } }),
     prisma.supplier.findMany({ orderBy: { name: "asc" } }),
-    prisma.agent.findMany({ orderBy: { name: "asc" } }),
+    prisma.agent.findMany({
+      orderBy: { name: "asc" },
+      include: { owner: { select: { name: true } } },
+    }),
     prisma.user.findMany({
       orderBy: { name: "asc" },
       select: { id: true, email: true, name: true, role: true, createdAt: true },
@@ -70,6 +73,7 @@ export async function GET() {
       "Loại": t.type === "IMPORT" ? "Nhập hàng" : "Xuất hàng",
       "Ngày": formatDate(t.date),
       "Đối tác/Đại lý": t.supplier?.name ?? t.agent?.name ?? "",
+      "Chủ sở hữu đại lý": t.agent ? t.agent.owner?.name ?? "Chung" : "",
       "SKU": it.sku.code,
       "Tên hàng": it.sku.name,
       "Đơn vị": it.unitType === "CASE" ? "Thùng" : "Lẻ",
@@ -147,7 +151,11 @@ export async function GET() {
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(
-      agents.map((a) => ({ "Đại lý": a.name, "Ghi chú": a.note ?? "" }))
+      agents.map((a) => ({
+        "Đại lý": a.name,
+        "Ghi chú": a.note ?? "",
+        "Chủ sở hữu": a.owner?.name ?? "Chung",
+      }))
     ),
     "Dai ly"
   );
