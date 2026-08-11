@@ -38,7 +38,8 @@ export default async function SettingsPage() {
     }),
     prisma.brand.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.sku.findMany({
-      orderBy: { sortOrder: "asc" },
+      // Mặc định nhóm theo Brand (A-Z), trong từng Brand vẫn giữ thứ tự kéo thả.
+      orderBy: [{ brand: { name: "asc" } }, { sortOrder: "asc" }],
       include: { brand: { select: { name: true } } },
     }),
     isAdmin
