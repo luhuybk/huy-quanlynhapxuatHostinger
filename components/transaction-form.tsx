@@ -270,13 +270,7 @@ export function TransactionForm({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o && !editingTransaction) resetForm();
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
         <DialogTrigger asChild>
           <Button>
