@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+
+type Client = typeof prisma | Prisma.TransactionClient;
 
 function pad(n: number, len: number) {
   return n.toString().padStart(len, "0");
@@ -41,7 +44,10 @@ export async function generateChinaImportCode(date: Date): Promise<string> {
   return `TQ-${y}${m}${d}-${seq}`;
 }
 
-export async function generateSkuCode(brandName: string): Promise<string> {
+export async function generateSkuCode(
+  brandName: string,
+  client: Client = prisma
+): Promise<string> {
   const brandPrefix = brandName
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -50,7 +56,7 @@ export async function generateSkuCode(brandName: string): Promise<string> {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 4);
 
-  const countExisting = await prisma.sku.count({
+  const countExisting = await client.sku.count({
     where: { code: { startsWith: `${brandPrefix}-` } },
   });
 
