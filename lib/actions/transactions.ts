@@ -19,7 +19,7 @@ export type TransactionItemInput = {
 };
 
 const pathByType: Record<"IMPORT" | "EXPORT", string> = {
-  IMPORT: "/nhap-hang",
+  IMPORT: "/hang-ve-kho",
   EXPORT: "/xuat-hang",
 };
 

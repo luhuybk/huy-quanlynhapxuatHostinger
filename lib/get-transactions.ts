@@ -63,8 +63,8 @@ export async function getTransactions(
     where: buildTransactionWhere(type, filters, viewer),
     orderBy: { date: "desc" },
     include: {
-      supplier: { select: { name: true } },
-      agent: { select: { name: true } },
+      supplier: { select: { id: true, name: true } },
+      agent: { select: { id: true, name: true } },
       createdBy: { select: { name: true } },
       items: {
         include: {

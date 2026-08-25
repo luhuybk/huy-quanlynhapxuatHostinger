@@ -14,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Pencil, Check, X } from "lucide-react";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import {
   createChinaOrderItem,
   updateChinaOrderItem,
@@ -278,14 +279,12 @@ export function ChinaOrderList({
                       <Pencil className="h-4 w-4" />
                     </Button>
                     {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                      <ConfirmDeleteButton
                         disabled={isPending}
-                        onClick={() => handleDelete(it.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        title="Xoá mục này?"
+                        description={`"${it.itemName}" sẽ bị xoá khỏi danh sách cần order.`}
+                        onConfirm={() => handleDelete(it.id)}
+                      />
                     )}
                   </TableCell>
                 </TableRow>

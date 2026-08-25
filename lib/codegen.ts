@@ -44,6 +44,24 @@ export async function generateChinaImportCode(date: Date): Promise<string> {
   return `TQ-${y}${m}${d}-${seq}`;
 }
 
+export async function generateVnOrderCode(
+  date: Date,
+  client: Client = prisma
+): Promise<string> {
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1, 2);
+  const d = pad(date.getDate(), 2);
+  const dayStart = new Date(y, date.getMonth(), date.getDate());
+  const dayEnd = new Date(y, date.getMonth(), date.getDate() + 1);
+
+  const countToday = await client.vnOrder.count({
+    where: { date: { gte: dayStart, lt: dayEnd } },
+  });
+
+  const seq = pad(countToday + 1, 2);
+  return `VN-${y}${m}${d}-${seq}`;
+}
+
 export async function generateSkuCode(
   brandName: string,
   client: Client = prisma

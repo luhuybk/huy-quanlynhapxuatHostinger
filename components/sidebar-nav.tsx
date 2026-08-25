@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { PackagePlus, PackageMinus, Ship, Settings } from "lucide-react";
+import { PackagePlus, PackageMinus, ClipboardList, Settings } from "lucide-react";
 
+// Xếp theo đúng luồng hàng: cần order → về kho → xuất đi.
 const links = [
-  { href: "/nhap-hang", label: "Nhập hàng", shortLabel: "Nhập hàng", icon: PackagePlus },
-  { href: "/nhap-hang-trung", label: "Nhập hàng Trung", shortLabel: "Hàng Trung", icon: Ship },
+  { href: "/hang-can-order", label: "Hàng cần order", shortLabel: "Cần order", icon: ClipboardList },
+  { href: "/hang-ve-kho", label: "Hàng về kho", shortLabel: "Về kho", icon: PackagePlus },
   { href: "/xuat-hang", label: "Xuất hàng", shortLabel: "Xuất hàng", icon: PackageMinus },
   { href: "/cai-dat", label: "Cài đặt", shortLabel: "Cài đặt", icon: Settings },
 ];

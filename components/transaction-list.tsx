@@ -20,7 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import {
   updateItemFlags,
   updateTransactionFlags,
@@ -36,8 +37,8 @@ type TransactionListItem = {
   code: string;
   date: Date;
   note: string | null;
-  supplier: { name: string } | null;
-  agent: { name: string } | null;
+  supplier: { id: string; name: string } | null;
+  agent: { id: string; name: string } | null;
   createdBy: { name: string };
   paidDebt: boolean;
   receivedWarehouse: boolean;
@@ -157,10 +158,10 @@ export function TransactionList({
     ? {
         id: editing.id,
         date: editing.date,
+        // Lấy thẳng id của đối tác/đại lý — tra theo tên sẽ chọn nhầm khi có
+        // hai đối tác trùng tên, và làm mất liên kết nếu tên đã đổi.
         partnerId:
-          type === "IMPORT"
-            ? suppliers?.find((s) => s.name === editing.supplier?.name)?.id ?? ""
-            : agents?.find((a) => a.name === editing.agent?.name)?.id ?? "",
+          (type === "IMPORT" ? editing.supplier?.id : editing.agent?.id) ?? "",
         note: editing.note,
         paidDebt: editing.paidDebt,
         receivedWarehouse: editing.receivedWarehouse,
@@ -266,14 +267,11 @@ export function TransactionList({
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <ConfirmDeleteButton
                       disabled={isPending}
-                      onClick={() => handleDelete(t.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      description={`Phiếu ${t.code} (${partnerName(t)}) sẽ bị xoá vĩnh viễn.`}
+                      onConfirm={() => handleDelete(t.id)}
+                    />
                   </TableCell>
                 )}
               </TableRow>
@@ -281,7 +279,7 @@ export function TransactionList({
             {transactions.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={(type === "IMPORT" ? 7 : 6) + (isAdmin ? 1 : 0)}
                   className="text-center text-muted-foreground"
                 >
                   Không có phiếu nào

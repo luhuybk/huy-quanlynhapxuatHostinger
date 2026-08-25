@@ -390,8 +390,13 @@ export async function importBackup(formData: FormData): Promise<ImportSummary> {
     summary.chinaImports.created++;
   }
 
-  // --- Hàng cần order (không có mã định danh -> luôn thêm mới) ---
-  for (const row of sheetRows(wb, "Hang can order")) {
+  // --- Hàng Trung cần order (không có mã định danh -> luôn thêm mới) ---
+  // "Hang can order" là tên sheet cũ, giữ lại để đọc được file backup cũ.
+  const chinaOrderRows = [
+    ...sheetRows(wb, "Hang Trung can order"),
+    ...sheetRows(wb, "Hang can order"),
+  ];
+  for (const row of chinaOrderRows) {
     const itemName = str(row, "Tên hàng");
     if (!itemName) continue;
     const creatorName = str(row, "Người thêm");
@@ -409,9 +414,9 @@ export async function importBackup(formData: FormData): Promise<ImportSummary> {
   }
 
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-can-order");
 
   return summary;
 }

@@ -2,6 +2,18 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
+    // Endpoint này nằm ngoài lớp đăng nhập (proxy.ts bỏ qua /api) nên phải tự
+    // kiểm tra mật khẩu, nếu không ai biết link cũng bắn tin vào Telegram được.
+    // TradingView gọi kèm ?secret=... — đặt WEBHOOK_SECRET trong .env.
+    const secret = process.env.WEBHOOK_SECRET;
+    if (!secret) {
+      console.error("TradingView webhook: chưa đặt WEBHOOK_SECRET");
+      return NextResponse.json({ message: "Chưa cấu hình" }, { status: 503 });
+    }
+    if (new URL(request.url).searchParams.get("secret") !== secret) {
+      return NextResponse.json({ message: "Không hợp lệ" }, { status: 401 });
+    }
+
     const text = await request.text();
 
     if (!text.includes("dời SL")) {

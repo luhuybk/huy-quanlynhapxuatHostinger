@@ -111,7 +111,8 @@ export function ImportBackupDialog() {
               <li>SKU: {jsonSummary.skus}</li>
               <li>Phiếu nhập/xuất: {jsonSummary.transactions}</li>
               <li>Phiếu nhập hàng Trung: {jsonSummary.chinaImports}</li>
-              <li>Hàng cần order: {jsonSummary.chinaOrderItems}</li>
+              <li>Hàng Trung cần order: {jsonSummary.chinaOrderItems}</li>
+              <li>Đợt order hàng VN: {jsonSummary.vnOrders}</li>
             </ul>
             {jsonSummary.warnings.length > 0 && (
               <div className="rounded-md border border-destructive/50 p-3">

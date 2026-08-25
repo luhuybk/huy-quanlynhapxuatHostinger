@@ -26,6 +26,7 @@ export async function GET() {
     transactions,
     chinaImports,
     chinaOrderItems,
+    vnOrders,
   ] = await Promise.all([
     prisma.user.findMany(),
     prisma.brand.findMany(),
@@ -35,6 +36,7 @@ export async function GET() {
     prisma.transaction.findMany({ include: { items: true } }),
     prisma.chinaImport.findMany({ include: { items: true } }),
     prisma.chinaOrderItem.findMany(),
+    prisma.vnOrder.findMany({ include: { items: true } }),
   ]);
 
   const payload = {
@@ -49,6 +51,7 @@ export async function GET() {
     transactions,
     chinaImports,
     chinaOrderItems,
+    vnOrders,
   };
 
   const today = new Date().toISOString().slice(0, 10);

@@ -30,7 +30,7 @@ export async function createChinaOrderItem(formData: FormData) {
     data: { itemName, quantity, note, createdById: session.user.id },
   });
 
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-can-order");
 }
 
 export async function updateChinaOrderItem(id: string, formData: FormData) {
@@ -48,7 +48,7 @@ export async function updateChinaOrderItem(id: string, formData: FormData) {
     data: { itemName, quantity, note },
   });
 
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-can-order");
 }
 
 export async function toggleChinaOrderItem(id: string, ordered: boolean) {
@@ -59,7 +59,7 @@ export async function toggleChinaOrderItem(id: string, ordered: boolean) {
     data: { ordered },
   });
 
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-can-order");
 }
 
 export async function toggleChinaOrderItemArrived(id: string, arrived: boolean) {
@@ -70,7 +70,7 @@ export async function toggleChinaOrderItemArrived(id: string, arrived: boolean) 
     data: { arrived },
   });
 
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-can-order");
 }
 
 export async function deleteChinaOrderItem(id: string) {
@@ -78,5 +78,5 @@ export async function deleteChinaOrderItem(id: string) {
   requireAdmin(session);
 
   await prisma.chinaOrderItem.delete({ where: { id } });
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-can-order");
 }

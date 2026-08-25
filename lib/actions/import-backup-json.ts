@@ -13,6 +13,7 @@ export type ImportJsonSummary = {
   transactions: number;
   chinaImports: number;
   chinaOrderItems: number;
+  vnOrders: number;
   warnings: string[];
 };
 
@@ -60,6 +61,7 @@ export async function importBackupJson(formData: FormData): Promise<ImportJsonSu
     transactions: 0,
     chinaImports: 0,
     chinaOrderItems: 0,
+    vnOrders: 0,
     warnings: [],
   };
 
@@ -239,10 +241,45 @@ export async function importBackupJson(formData: FormData): Promise<ImportJsonSu
     }
   }
 
+  for (const vo of arr("vnOrders")) {
+    try {
+      const { id, code, date, brandId, note, ordered, arrived, createdById, createdAt, items } =
+        vo as {
+          id: string; code: string; date: string; brandId: string; note: string | null;
+          ordered: boolean; arrived: boolean; createdById: string; createdAt: string;
+          items: Record<string, unknown>[];
+        };
+      await prisma.vnOrder.upsert({
+        where: { id },
+        create: {
+          id, code, date: toDate(date), brandId, note, ordered, arrived, createdById,
+          createdAt: toDate(createdAt),
+        },
+        update: { code, date: toDate(date), brandId, note, ordered, arrived, createdById },
+      });
+      for (const it of items ?? []) {
+        const { id: itemId, skuId, itemName, quantity, note: itemNote } = it as {
+          id: string; skuId: string | null; itemName: string; quantity: number;
+          note: string | null;
+        };
+        await prisma.vnOrderItem.upsert({
+          where: { id: itemId },
+          create: { id: itemId, vnOrderId: id, skuId, itemName, quantity, note: itemNote },
+          update: { skuId, itemName, quantity, note: itemNote },
+        });
+      }
+      summary.vnOrders++;
+    } catch (e) {
+      summary.warnings.push(
+        `Đợt order VN "${vo.code}": ${e instanceof Error ? e.message : "lỗi"}`
+      );
+    }
+  }
+
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-can-order");
 
   return summary;
 }

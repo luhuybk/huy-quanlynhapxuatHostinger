@@ -73,7 +73,7 @@ export async function createChinaImport(formData: FormData) {
     }
   });
 
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-ve-kho");
 }
 
 export async function updateChinaImport(id: string, formData: FormData) {
@@ -108,7 +108,7 @@ export async function updateChinaImport(id: string, formData: FormData) {
     }
   });
 
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-ve-kho");
 }
 
 export async function deleteChinaImport(id: string) {
@@ -116,5 +116,5 @@ export async function deleteChinaImport(id: string) {
   requireAdmin(session);
 
   await prisma.chinaImport.delete({ where: { id } });
-  revalidatePath("/nhap-hang-trung");
+  revalidatePath("/hang-ve-kho");
 }

@@ -23,6 +23,7 @@ export async function GET() {
     transactions,
     chinaImports,
     chinaOrderItems,
+    vnOrders,
     skus,
     brands,
     suppliers,
@@ -45,6 +46,14 @@ export async function GET() {
     prisma.chinaOrderItem.findMany({
       orderBy: { createdAt: "desc" },
       include: { createdBy: { select: { name: true } } },
+    }),
+    prisma.vnOrder.findMany({
+      orderBy: { date: "desc" },
+      include: {
+        brand: { select: { name: true } },
+        createdBy: { select: { name: true } },
+        items: true,
+      },
     }),
     prisma.sku.findMany({
       orderBy: { name: "asc" },
@@ -124,7 +133,27 @@ export async function GET() {
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(orderItemRows),
-    "Hang can order"
+    "Hang Trung can order"
+  );
+
+  const vnOrderRows = vnOrders.flatMap((o) =>
+    o.items.map((it) => ({
+      "Mã đợt": o.code,
+      "Ngày": formatDate(o.date),
+      "Brand": o.brand.name,
+      "Tên hàng": it.itemName,
+      "Số lượng": it.quantity,
+      "Ghi chú dòng": it.note ?? "",
+      "Đã đặt": o.ordered ? "Có" : "Chưa",
+      "Đã về": o.arrived ? "Có" : "Chưa",
+      "Ghi chú đợt": o.note ?? "",
+      "Người tạo": o.createdBy.name,
+    }))
+  );
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(vnOrderRows),
+    "Hang VN can order"
   );
 
   const skuRows = skus.map((s) => ({

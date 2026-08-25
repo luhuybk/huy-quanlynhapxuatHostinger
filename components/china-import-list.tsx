@@ -18,7 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { deleteChinaImport } from "@/lib/actions/china-imports";
 import { ChinaImportForm, type EditableChinaImport } from "@/components/china-import-form";
 
@@ -97,14 +98,11 @@ export function ChinaImportList({
                     <Button variant="ghost" size="icon" onClick={() => setEditingId(t.id)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <ConfirmDeleteButton
                       disabled={isPending}
-                      onClick={() => handleDelete(t.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      description={`Phiếu ${t.code} sẽ bị xoá vĩnh viễn.`}
+                      onConfirm={() => handleDelete(t.id)}
+                    />
                   </TableCell>
                 )}
               </TableRow>

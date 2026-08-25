@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
   // to this exact build so Hostinger restarts/redeploys don't serve
   // mismatched client/server bundles ("Failed to find Server Action").
   deploymentId: process.env.DEPLOYMENT_ID,
+  // Các đường dẫn cũ trước khi gom lại thành "Hàng về kho" / "Hàng cần order" —
+  // giữ redirect để link/bookmark cũ không bị 404.
+  async redirects() {
+    return [
+      { source: "/nhap-hang", destination: "/hang-ve-kho", permanent: false },
+      { source: "/nhap-hang-trung", destination: "/hang-ve-kho", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

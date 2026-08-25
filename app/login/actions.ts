@@ -11,7 +11,7 @@ export async function loginAction(
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/nhap-hang",
+      redirectTo: "/hang-ve-kho",
     });
     return {};
   } catch (error) {

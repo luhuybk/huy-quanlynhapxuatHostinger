@@ -147,13 +147,7 @@ export function ChinaImportForm({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o && !editingImport) resetForm();
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
         <DialogTrigger asChild>
           <Button>

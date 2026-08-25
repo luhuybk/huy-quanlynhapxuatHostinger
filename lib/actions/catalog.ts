@@ -50,7 +50,7 @@ export async function reorderSuppliers(orderedIds: string[]) {
     )
   );
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
 }
 
 // --- Agent (đại lý) ---
@@ -169,7 +169,7 @@ export async function reorderBrands(orderedIds: string[]) {
     )
   );
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
 }
 
@@ -209,7 +209,7 @@ export async function createSku(formData: FormData) {
     },
   });
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
 }
 
@@ -232,7 +232,7 @@ export async function updateSku(id: string, formData: FormData) {
     data: { name, brandId, unitsPerCase, supplierId, isQuickCreate },
   });
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
 }
 
@@ -240,7 +240,7 @@ export async function deleteSku(id: string) {
   await requireAuth();
   await prisma.sku.delete({ where: { id } });
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
 }
 
@@ -252,7 +252,7 @@ export async function reorderSkus(orderedIds: string[]) {
     )
   );
   revalidatePath("/cai-dat");
-  revalidatePath("/nhap-hang");
+  revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
 }
 

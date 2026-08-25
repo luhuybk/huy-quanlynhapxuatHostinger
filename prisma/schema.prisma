@@ -22,6 +22,7 @@ model User {
   transactions    Transaction[]
   chinaImports    ChinaImport[]
   chinaOrderItems ChinaOrderItem[]
+  vnOrders        VnOrder[]
   ownedAgents     Agent[]          @relation("AgentOwner")
 }
 
@@ -58,7 +59,8 @@ model Brand {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
-  skus Sku[]
+  skus     Sku[]
+  vnOrders VnOrder[]
 }
 
 model Sku {
@@ -72,9 +74,10 @@ model Sku {
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
 
-  brand    Brand    @relation(fields: [brandId], references: [id])
-  supplier Supplier? @relation(fields: [supplierId], references: [id])
-  items    TransactionItem[]
+  brand        Brand             @relation(fields: [brandId], references: [id])
+  supplier     Supplier?         @relation(fields: [supplierId], references: [id])
+  items        TransactionItem[]
+  vnOrderItems VnOrderItem[]
 }
 
 // SQLite has no native enum support; TransactionType is "IMPORT" | "EXPORT"
@@ -109,14 +112,14 @@ model Transaction {
 }
 
 model TransactionItem {
-  id              String   @id @default(cuid())
+  id              String  @id @default(cuid())
   transactionId   String
   skuId           String
   unitType        String
   quantityInput   Int
   quantityUnits   Int
-  matchedQuantity Boolean  @default(false)
-  matchedDebt     Boolean  @default(false)
+  matchedQuantity Boolean @default(false)
+  matchedDebt     Boolean @default(false)
   note            String?
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -140,7 +143,7 @@ model ChinaImport {
 }
 
 model ChinaImportItem {
-  id            String @id @default(cuid())
+  id            String  @id @default(cuid())
   chinaImportId String
   itemName      String
   quantity      Int
@@ -149,8 +152,46 @@ model ChinaImportItem {
   chinaImport ChinaImport @relation(fields: [chinaImportId], references: [id], onDelete: Cascade)
 }
 
-// Danh sách hàng cần order (chưa lên phiếu nhập) — tách riêng khỏi ChinaImport
-// để không lẫn với các phiếu đã nhập thật.
+// Đợt order hàng Việt Nam — hàng VN thường đặt theo từng brand, nên mỗi đợt
+// gắn với đúng 1 Brand và chứa nhiều món. Trạng thái đã đặt / đã về tính cho
+// cả đợt. Tương ứng tab "Hàng order Việt Nam" trong /hang-can-order.
+model VnOrder {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  date        DateTime
+  brandId     String
+  note        String?
+  ordered     Boolean  @default(false)
+  arrived     Boolean  @default(false)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  brand     Brand         @relation(fields: [brandId], references: [id])
+  createdBy User          @relation(fields: [createdById], references: [id])
+  items     VnOrderItem[]
+
+  @@index([brandId])
+  @@index([ordered])
+}
+
+model VnOrderItem {
+  id        String  @id @default(cuid())
+  vnOrderId String
+  // Trỏ tới SKU có sẵn khi chọn từ danh mục; null khi gõ tên hàng mới tự do.
+  skuId     String?
+  itemName  String
+  quantity  Int
+  note      String?
+
+  vnOrder VnOrder @relation(fields: [vnOrderId], references: [id], onDelete: Cascade)
+  sku     Sku?    @relation(fields: [skuId], references: [id])
+
+  @@index([vnOrderId])
+  @@index([skuId])
+}
+
+// Danh sách hàng Trung cần order (chưa lên phiếu nhập) — tách riêng khỏi
+// ChinaImport để không lẫn với các phiếu đã nhập thật.
 model ChinaOrderItem {
   id          String   @id @default(cuid())
   itemName    String
