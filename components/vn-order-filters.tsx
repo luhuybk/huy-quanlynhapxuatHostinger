@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FilterPanel, type ActiveFilter } from "@/components/filter-panel";
 
 const STATUSES = [
   { value: "pending", label: "Chưa đặt" },
@@ -32,8 +32,18 @@ export function VnOrderFilters({ brands }: { brands: { id: string; name: string 
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  const active: ActiveFilter[] = [];
+  const brand = brands.find((b) => b.id === brandId);
+  if (brand) active.push({ key: "brandId", label: brand.name });
+  const statusOption = STATUSES.find((s) => s.value === status);
+  if (statusOption) active.push({ key: "status", label: statusOption.label });
+
   return (
-    <div className="grid grid-cols-2 items-end gap-x-3 gap-y-4 rounded-lg border bg-muted/30 p-3 sm:flex sm:flex-wrap">
+    <FilterPanel
+      active={active}
+      onRemove={(key) => setParam(key, "")}
+      onClearAll={() => router.push(pathname)}
+    >
       <div className="flex flex-col gap-1.5">
         <Label>Brand</Label>
         <Select
@@ -72,11 +82,6 @@ export function VnOrderFilters({ brands }: { brands: { id: string; name: string 
           </SelectContent>
         </Select>
       </div>
-      {(brandId || status) && (
-        <Button variant="ghost" onClick={() => router.push(pathname)}>
-          Xoá lọc
-        </Button>
-      )}
-    </div>
+    </FilterPanel>
   );
 }

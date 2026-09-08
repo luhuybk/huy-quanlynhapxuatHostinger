@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FilterPanel, type ActiveFilter } from "@/components/filter-panel";
 
 // Bộ lọc theo cờ trạng thái của phiếu. Giá trị "1"/"0" khớp với boolFilter()
 // trong lib/get-transactions.ts.
@@ -54,6 +54,12 @@ const STATUS_FILTERS: Record<
   ],
 };
 
+// Ô ngày trả về "YYYY-MM-DD"; hiện lại cho gọn theo kiểu Việt Nam.
+function shortDate(value: string) {
+  const [y, m, d] = value.split("-");
+  return d && m ? `${d}/${m}/${y.slice(2)}` : value;
+}
+
 export function TransactionFilters({
   type,
   partners,
@@ -84,18 +90,38 @@ export function TransactionFilters({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  const hasFilters =
-    from ||
-    to ||
-    partnerId ||
-    createdById ||
-    agentOwnerId ||
-    statusFilters.some((s) => searchParams.get(s.key));
+  // Tóm tắt các lọc đang bật để hiện thành thẻ khi bảng lọc đang thu gọn.
+  const active: ActiveFilter[] = [];
+  if (from) active.push({ key: "from", label: `Từ ${shortDate(from)}` });
+  if (to) active.push({ key: "to", label: `Đến ${shortDate(to)}` });
+  if (partnerId) {
+    const partner = partners.find((p) => p.id === partnerId);
+    if (partner) active.push({ key: "partnerId", label: partner.name });
+  }
+  for (const s of statusFilters) {
+    const value = searchParams.get(s.key);
+    if (value === "1" || value === "0") {
+      active.push({
+        key: s.key,
+        label: value === "1" ? s.doneLabel : s.pendingLabel,
+      });
+    }
+  }
+  if (createdById) {
+    const creator = creators?.find((c) => c.id === createdById);
+    if (creator) active.push({ key: "createdById", label: `Người tạo: ${creator.name}` });
+  }
+  if (agentOwnerId) {
+    const owner = staffOwners?.find((s) => s.id === agentOwnerId);
+    if (owner) active.push({ key: "agentOwnerId", label: `Đại lý của ${owner.name}` });
+  }
 
   return (
-    // Trên điện thoại xếp 2 cột (ô select lấy đủ chiều rộng của cột, không bị
-    // co lại chỉ còn mũi tên); từ sm trở lên mới xếp hàng ngang tự xuống dòng.
-    <div className="grid grid-cols-2 items-end gap-x-3 gap-y-4 rounded-lg border bg-muted/30 p-3 sm:flex sm:flex-wrap">
+    <FilterPanel
+      active={active}
+      onRemove={(key) => setParam(key, "")}
+      onClearAll={() => router.push(pathname)}
+    >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="from">Từ ngày</Label>
         <Input
@@ -197,11 +223,6 @@ export function TransactionFilters({
           </Select>
         </div>
       )}
-      {hasFilters && (
-        <Button variant="ghost" onClick={() => router.push(pathname)}>
-          Xoá lọc
-        </Button>
-      )}
-    </div>
+    </FilterPanel>
   );
 }
