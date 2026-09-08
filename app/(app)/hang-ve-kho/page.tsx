@@ -24,6 +24,8 @@ export default async function WarehousePage({
     to?: string;
     partnerId?: string;
     createdById?: string;
+    receivedWarehouse?: string;
+    paidDebt?: string;
   }>;
 }) {
   const filters = await searchParams;
@@ -64,12 +66,7 @@ export default async function WarehousePage({
         </TabsList>
 
         <TabsContent value="vn" className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <TransactionFilters
-              type="IMPORT"
-              partners={suppliers}
-              creators={creators}
-            />
+          <div className="flex justify-end">
             <TransactionForm
               type="IMPORT"
               role={role}
@@ -78,6 +75,11 @@ export default async function WarehousePage({
               skus={skuOptions}
             />
           </div>
+          <TransactionFilters
+            type="IMPORT"
+            partners={suppliers}
+            creators={creators}
+          />
           <TransactionList
             type="IMPORT"
             role={role}
@@ -89,7 +91,7 @@ export default async function WarehousePage({
         </TabsContent>
 
         <TabsContent value="china" className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex justify-end">
             <ChinaImportForm />
           </div>
           <ChinaImportList role={role} imports={chinaImports} />

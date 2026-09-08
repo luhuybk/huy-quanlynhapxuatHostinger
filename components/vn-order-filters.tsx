@@ -33,8 +33,8 @@ export function VnOrderFilters({ brands }: { brands: { id: string; name: string 
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="flex flex-col gap-2">
+    <div className="grid grid-cols-2 items-end gap-x-3 gap-y-4 rounded-lg border bg-muted/30 p-3 sm:flex sm:flex-wrap">
+      <div className="flex flex-col gap-1.5">
         <Label>Brand</Label>
         <Select
           value={brandId || "all"}
@@ -53,7 +53,7 @@ export function VnOrderFilters({ brands }: { brands: { id: string; name: string 
           </SelectContent>
         </Select>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <Label>Trạng thái</Label>
         <Select
           value={status || "all"}

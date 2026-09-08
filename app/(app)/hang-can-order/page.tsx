@@ -55,10 +55,10 @@ export default async function OrderPage({
         </TabsList>
 
         <TabsContent value="vn" className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <VnOrderFilters brands={brands} />
+          <div className="flex justify-end">
             <VnOrderForm brands={brands} skus={skuOptions} />
           </div>
+          <VnOrderFilters brands={brands} />
           <VnOrderList
             role={role}
             orders={vnOrders}

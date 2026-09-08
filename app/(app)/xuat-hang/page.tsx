@@ -17,6 +17,9 @@ export default async function ExportPage({
     partnerId?: string;
     createdById?: string;
     agentOwnerId?: string;
+    goodsShipped?: string;
+    paid?: string;
+    settled?: string;
   }>;
 }) {
   const filters = await searchParams;

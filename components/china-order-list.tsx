@@ -166,7 +166,7 @@ export function ChinaOrderList({
         className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-end"
       >
         <div className="flex flex-1 flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Tên hàng</label>
+          <label className="text-sm text-muted-foreground">Tên hàng</label>
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -174,7 +174,7 @@ export function ChinaOrderList({
           />
         </div>
         <div className="flex w-24 flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Số lượng</label>
+          <label className="text-sm text-muted-foreground">Số lượng</label>
           <Input
             type="number"
             min={1}
@@ -183,7 +183,7 @@ export function ChinaOrderList({
           />
         </div>
         <div className="flex flex-1 flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Ghi chú</label>
+          <label className="text-sm text-muted-foreground">Ghi chú</label>
           <Input
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
@@ -229,10 +229,10 @@ export function ChinaOrderList({
                   <TableCell>
                     <Input value={editNote} onChange={(e) => setEditNote(e.target.value)} />
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-muted-foreground">
                     {formatDate(it.createdAt)}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-muted-foreground">
                     {it.createdBy.name}
                   </TableCell>
                   <TableCell className="flex gap-1">
@@ -267,11 +267,11 @@ export function ChinaOrderList({
                     {it.itemName}
                   </TableCell>
                   <TableCell>{it.quantity}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{it.note}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-muted-foreground">{it.note}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {formatDate(it.createdAt)}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-muted-foreground">
                     {it.createdBy.name}
                   </TableCell>
                   <TableCell className="flex gap-1">

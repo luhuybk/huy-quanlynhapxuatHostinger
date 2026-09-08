@@ -2,13 +2,26 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
 type Viewer = { id: string; role: "ADMIN" | "SHARED" | "STAFF" };
-type TransactionFilters = {
+export type TransactionFilters = {
   from?: string;
   to?: string;
   partnerId?: string;
   createdById?: string;
   agentOwnerId?: string;
+  // Lọc theo cờ trạng thái của phiếu: "1" = rồi, "0" = chưa, bỏ trống = tất cả.
+  receivedWarehouse?: string;
+  paidDebt?: string;
+  goodsShipped?: string;
+  paid?: string;
+  settled?: string;
 };
+
+// searchParam "1"/"0" -> true/false; mọi giá trị khác coi như không lọc.
+function boolFilter(value?: string): boolean | undefined {
+  if (value === "1") return true;
+  if (value === "0") return false;
+  return undefined;
+}
 
 function buildTransactionWhere(
   type: "IMPORT" | "EXPORT",
@@ -35,6 +48,25 @@ function buildTransactionWhere(
   }
 
   if (filters.createdById) where.createdById = filters.createdById;
+
+  // Cờ trạng thái — mỗi loại phiếu chỉ dùng cờ của mình để tránh lọc nhầm
+  // theo cột luôn bằng false ở loại phiếu kia.
+  const flagFilters =
+    type === "IMPORT"
+      ? ({
+          receivedWarehouse: boolFilter(filters.receivedWarehouse),
+          paidDebt: boolFilter(filters.paidDebt),
+        } as const)
+      : ({
+          goodsShipped: boolFilter(filters.goodsShipped),
+          paid: boolFilter(filters.paid),
+          settled: boolFilter(filters.settled),
+        } as const);
+  for (const [key, value] of Object.entries(flagFilters)) {
+    if (value !== undefined) {
+      where[key as keyof typeof flagFilters] = value;
+    }
+  }
 
   // "Đại lý của nhân viên" filter — lọc theo chủ sở hữu đại lý (tách biệt với
   // "Người tạo", vì ai cũng có thể tạo phiếu xuất cho đại lý của người khác).

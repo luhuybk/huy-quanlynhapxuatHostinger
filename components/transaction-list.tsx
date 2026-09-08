@@ -78,9 +78,81 @@ function MatchSummary({
   const total = items.length;
   const allMatched = matched === total;
   return (
-    <Badge variant={allMatched ? "secondary" : "outline"}>
+    <Badge variant={allMatched ? "success" : "outline"}>
       {matched}/{total}
     </Badge>
+  );
+}
+
+function StatusBadge({
+  done,
+  doneLabel,
+  pendingLabel = "Chưa",
+}: {
+  done: boolean;
+  doneLabel: string;
+  pendingLabel?: string;
+}) {
+  // Chỉ tô xanh khi đã xong; việc chưa xong để trung tính, nhìn cả bảng sẽ
+  // thấy ngay dòng nào "thiếu màu xanh" thay vì cả cột rực lên một màu.
+  return (
+    <Badge variant={done ? "success" : "outline"}>
+      {done ? doneLabel : pendingLabel}
+    </Badge>
+  );
+}
+
+// Tóm tắt nhanh những phiếu còn dang dở của danh sách đang xem — để cuối
+// tháng nhìn phát là biết còn bao nhiêu phiếu chưa xong, không phải đếm tay.
+function ListSummary({
+  type,
+  transactions,
+}: {
+  type: "IMPORT" | "EXPORT";
+  transactions: TransactionListItem[];
+}) {
+  const total = transactions.length;
+  if (total === 0) return null;
+
+  const pending =
+    type === "IMPORT"
+      ? [
+          {
+            label: "chưa nhập kho",
+            count: transactions.filter((t) => !t.receivedWarehouse).length,
+          },
+          {
+            label: "chưa TT công nợ",
+            count: transactions.filter((t) => !t.paidDebt).length,
+          },
+        ]
+      : [
+          {
+            label: "chưa xuất",
+            count: transactions.filter((t) => !t.goodsShipped).length,
+          },
+          {
+            label: "chưa thanh toán",
+            count: transactions.filter((t) => !t.paid).length,
+          },
+          {
+            label: "chưa tất toán",
+            count: transactions.filter((t) => !t.settled).length,
+          },
+        ];
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem]">
+      <span className="font-semibold">{total} phiếu</span>
+      {pending.map((p) => (
+        <span key={p.label} className="flex items-center gap-2">
+          <span className="text-muted-foreground">·</span>
+          <span className={p.count > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
+            {p.count} {p.label}
+          </span>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -183,6 +255,7 @@ export function TransactionList({
 
   return (
     <>
+      <ListSummary type={type} transactions={transactions} />
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <Table className="min-w-[720px]">
           <TableHeader>
@@ -226,32 +299,22 @@ export function TransactionList({
                       <MatchSummary items={t.items} field="matchedDebt" />
                     </TableCell>
                     <TableCell>
-                      <Badge variant={t.receivedWarehouse ? "secondary" : "outline"}>
-                        {t.receivedWarehouse ? "Đã nhập" : "Chưa"}
-                      </Badge>
+                      <StatusBadge done={t.receivedWarehouse} doneLabel="Đã nhập" />
                     </TableCell>
                     <TableCell>
-                      <Badge variant={t.paidDebt ? "secondary" : "outline"}>
-                        {t.paidDebt ? "Đã TT" : "Chưa"}
-                      </Badge>
+                      <StatusBadge done={t.paidDebt} doneLabel="Đã TT" />
                     </TableCell>
                   </>
                 ) : (
                   <>
                     <TableCell>
-                      <Badge variant={t.goodsShipped ? "secondary" : "outline"}>
-                        {t.goodsShipped ? "Đã xuất" : "Chưa"}
-                      </Badge>
+                      <StatusBadge done={t.goodsShipped} doneLabel="Đã xuất" />
                     </TableCell>
                     <TableCell>
-                      <Badge variant={t.paid ? "secondary" : "outline"}>
-                        {t.paid ? "Đã TT" : "Chưa"}
-                      </Badge>
+                      <StatusBadge done={t.paid} doneLabel="Đã TT" />
                     </TableCell>
                     <TableCell>
-                      <Badge variant={t.settled ? "secondary" : "outline"}>
-                        {t.settled ? "Tất toán" : "Chưa"}
-                      </Badge>
+                      <StatusBadge done={t.settled} doneLabel="Tất toán" />
                     </TableCell>
                   </>
                 )}
@@ -297,7 +360,7 @@ export function TransactionList({
           </DialogHeader>
           {detail && (
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <p className="break-words">
                   <span className="text-muted-foreground">Ngày: </span>
                   {formatDate(detail.date)}
@@ -328,7 +391,7 @@ export function TransactionList({
                         )
                       }
                     />
-                    <span className="text-sm">Nhập kho</span>
+                    <span>Nhập kho</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -338,7 +401,7 @@ export function TransactionList({
                         toggleHeaderFlag(detail.id, "paidDebt", detail.paidDebt)
                       }
                     />
-                    <span className="text-sm">Đã TT Công nợ</span>
+                    <span>Đã TT Công nợ</span>
                   </div>
                 </div>
               ) : (
@@ -355,7 +418,7 @@ export function TransactionList({
                         )
                       }
                     />
-                    <span className="text-sm">Đã xuất hàng</span>
+                    <span>Đã xuất hàng</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -365,7 +428,7 @@ export function TransactionList({
                         toggleHeaderFlag(detail.id, "paid", detail.paid)
                       }
                     />
-                    <span className="text-sm">Đã thanh toán</span>
+                    <span>Đã thanh toán</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -375,7 +438,7 @@ export function TransactionList({
                         toggleHeaderFlag(detail.id, "settled", detail.settled)
                       }
                     />
-                    <span className="text-sm">Tất toán</span>
+                    <span>Tất toán</span>
                   </div>
                 </div>
               )}
@@ -435,7 +498,7 @@ export function TransactionList({
                 </Table>
               </div>
               {detail.note && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground">
                   Ghi chú: {detail.note}
                 </p>
               )}

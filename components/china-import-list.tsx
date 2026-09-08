@@ -125,7 +125,7 @@ export function ChinaImportList({
           </DialogHeader>
           {detail && (
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <p className="break-words">
                   <span className="text-muted-foreground">Ngày: </span>
                   {formatDate(detail.date)}
@@ -155,7 +155,7 @@ export function ChinaImportList({
                 </Table>
               </div>
               {detail.note && (
-                <p className="text-sm text-muted-foreground">Ghi chú: {detail.note}</p>
+                <p className="text-muted-foreground">Ghi chú: {detail.note}</p>
               )}
               {isAdmin && (
                 <Button

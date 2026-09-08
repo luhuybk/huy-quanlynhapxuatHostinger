@@ -111,8 +111,24 @@ export function VnOrderList({
       }
     : undefined;
 
+  const pendingOrder = orders.filter((o) => !o.ordered).length;
+  const pendingArrive = orders.filter((o) => o.ordered && !o.arrived).length;
+
   return (
     <>
+      {orders.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem]">
+          <span className="font-semibold">{orders.length} đợt</span>
+          <span className="text-muted-foreground">·</span>
+          <span className={pendingOrder > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
+            {pendingOrder} chưa đặt
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <span className={pendingArrive > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
+            {pendingArrive} đã đặt chưa về
+          </span>
+        </div>
+      )}
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <Table className="min-w-[680px]">
           <TableHeader>
@@ -141,16 +157,16 @@ export function VnOrderList({
                   {o.items.reduce((sum, it) => sum + it.quantity, 0)}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={o.ordered ? "secondary" : "outline"}>
+                  <Badge variant={o.ordered ? "success" : "outline"}>
                     {o.ordered ? "Đã đặt" : "Chưa"}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={o.arrived ? "secondary" : "outline"}>
+                  <Badge variant={o.arrived ? "success" : "outline"}>
                     {o.arrived ? "Đã về" : "Chưa"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="text-muted-foreground">
                   {o.createdBy.name}
                 </TableCell>
                 {isAdmin && (
@@ -189,7 +205,7 @@ export function VnOrderList({
           </DialogHeader>
           {detail && (
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <p className="break-words">
                   <span className="text-muted-foreground">Ngày: </span>
                   {formatDate(detail.date)}
@@ -213,7 +229,7 @@ export function VnOrderList({
                       toggleFlag(detail.id, "ordered", detail.ordered)
                     }
                   />
-                  <span className="text-sm">Đã đặt</span>
+                  <span>Đã đặt</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -223,7 +239,7 @@ export function VnOrderList({
                       toggleFlag(detail.id, "arrived", detail.arrived)
                     }
                   />
-                  <span className="text-sm">Đã về</span>
+                  <span>Đã về</span>
                 </div>
               </div>
 
@@ -241,7 +257,7 @@ export function VnOrderList({
                       <TableRow key={it.id}>
                         <TableCell>{it.itemName}</TableCell>
                         <TableCell className="font-medium">{it.quantity}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-muted-foreground">
                           {it.note}
                         </TableCell>
                       </TableRow>
@@ -250,7 +266,7 @@ export function VnOrderList({
                 </Table>
               </div>
               {detail.note && (
-                <p className="text-sm text-muted-foreground">Ghi chú: {detail.note}</p>
+                <p className="text-muted-foreground">Ghi chú: {detail.note}</p>
               )}
               {isAdmin && (
                 <Button
