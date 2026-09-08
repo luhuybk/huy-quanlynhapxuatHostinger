@@ -30,6 +30,8 @@ export async function GET(request: Request) {
     goodsShipped: params.get("goodsShipped") ?? undefined,
     paid: params.get("paid") ?? undefined,
     settled: params.get("settled") ?? undefined,
+    sort: params.get("sort") ?? undefined,
+    dir: params.get("dir") ?? undefined,
   };
 
   // Truyền viewer để STAFF chỉ xuất được phiếu của đại lý mình quản lý —

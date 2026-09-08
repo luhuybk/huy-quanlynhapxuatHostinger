@@ -27,6 +27,8 @@ export default async function WarehousePage({
     createdById?: string;
     receivedWarehouse?: string;
     paidDebt?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }) {
   const filters = await searchParams;

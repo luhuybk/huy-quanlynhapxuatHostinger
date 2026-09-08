@@ -23,6 +23,7 @@ import {
 import { Pencil } from "lucide-react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ListSummary, type SummaryStat } from "@/components/list-summary";
+import { SortHeader } from "@/components/sort-header";
 import {
   updateItemFlags,
   updateTransactionFlags,
@@ -257,8 +258,14 @@ export function TransactionList({
         >
           <TableHeader>
             <TableRow>
-              <TableHead>Ngày</TableHead>
-              <TableHead>{type === "IMPORT" ? "Đối tác" : "Đại lý"}</TableHead>
+              <TableHead>
+                <SortHeader field="date">Ngày</SortHeader>
+              </TableHead>
+              <TableHead>
+                <SortHeader field="partner">
+                  {type === "IMPORT" ? "Đối tác" : "Đại lý"}
+                </SortHeader>
+              </TableHead>
               <TableHead>Số SKU</TableHead>
               {type === "IMPORT" ? (
                 <>

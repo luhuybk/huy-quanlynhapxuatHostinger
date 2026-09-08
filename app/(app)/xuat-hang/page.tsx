@@ -21,6 +21,8 @@ export default async function ExportPage({
     goodsShipped?: string;
     paid?: string;
     settled?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }) {
   const filters = await searchParams;

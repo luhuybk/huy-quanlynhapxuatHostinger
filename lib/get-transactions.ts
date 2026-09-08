@@ -14,7 +14,32 @@ export type TransactionFilters = {
   goodsShipped?: string;
   paid?: string;
   settled?: string;
+  // Sắp xếp: "date" (mặc định) hoặc "partner"; dir là "asc"/"desc".
+  sort?: string;
+  dir?: string;
 };
+
+// Sắp xếp danh sách phiếu. Khi xếp theo đối tác/đại lý thì ngày vẫn là tiêu
+// chí thứ hai, nên các phiếu của cùng một đối tác nằm liền nhau và trong mỗi
+// nhóm vẫn theo đúng thứ tự thời gian.
+function buildTransactionOrderBy(
+  type: "IMPORT" | "EXPORT",
+  filters: TransactionFilters
+): Prisma.TransactionOrderByWithRelationInput[] {
+  const dir: Prisma.SortOrder = filters.dir === "asc" ? "asc" : "desc";
+
+  if (filters.sort === "partner") {
+    // Ngày luôn mới nhất trước trong từng nhóm đối tác — dir chỉ đổi chiều
+    // A-Z / Z-A của tên đối tác.
+    const partnerOrder =
+      type === "IMPORT"
+        ? { supplier: { name: dir } }
+        : { agent: { name: dir } };
+    return [partnerOrder, { date: "desc" }];
+  }
+
+  return [{ date: dir }];
+}
 
 // searchParam "1"/"0" -> true/false; mọi giá trị khác coi như không lọc.
 function boolFilter(value?: string): boolean | undefined {
@@ -93,7 +118,7 @@ export async function getTransactions(
 ) {
   return prisma.transaction.findMany({
     where: buildTransactionWhere(type, filters, viewer),
-    orderBy: { date: "desc" },
+    orderBy: buildTransactionOrderBy(type, filters),
     include: {
       supplier: { select: { id: true, name: true } },
       agent: { select: { id: true, name: true } },
