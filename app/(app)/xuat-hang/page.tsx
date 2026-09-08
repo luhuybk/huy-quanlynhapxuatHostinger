@@ -6,6 +6,7 @@ import { getTransactions, getTransactionCreators } from "@/lib/get-transactions"
 import { TransactionForm } from "@/components/transaction-form";
 import { TransactionList } from "@/components/transaction-list";
 import { TransactionFilters } from "@/components/date-range-filter";
+import { ExportListButton } from "@/components/export-list-button";
 import type { Prisma } from "@prisma/client";
 
 export default async function ExportPage({
@@ -62,13 +63,16 @@ export default async function ExportPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Xuất hàng</h1>
-        <TransactionForm
-          type="EXPORT"
-          role={role}
-          agents={agents}
-          brands={brands}
-          skus={skuOptions}
-        />
+        <div className="flex flex-wrap gap-2">
+          <ExportListButton type="EXPORT" />
+          <TransactionForm
+            type="EXPORT"
+            role={role}
+            agents={agents}
+            brands={brands}
+            skus={skuOptions}
+          />
+        </div>
       </div>
       <TransactionFilters
         type="EXPORT"

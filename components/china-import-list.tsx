@@ -77,8 +77,11 @@ export function ChinaImportList({
 
   return (
     <>
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Table className="min-w-[560px]">
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <Table
+          className="min-w-[560px]"
+          containerClassName="max-h-[calc(100vh-20rem)]"
+        >
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead>

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { ListSummary } from "@/components/list-summary";
 import { updateVnOrderFlags, deleteVnOrder } from "@/lib/actions/vn-orders";
 import { VnOrderForm, type EditableVnOrder } from "@/components/vn-order-form";
 import type { SkuOption } from "@/components/sku-picker";
@@ -111,26 +112,31 @@ export function VnOrderList({
       }
     : undefined;
 
-  const pendingOrder = orders.filter((o) => !o.ordered).length;
-  const pendingArrive = orders.filter((o) => o.ordered && !o.arrived).length;
-
   return (
     <>
-      {orders.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem]">
-          <span className="font-semibold">{orders.length} đợt</span>
-          <span className="text-muted-foreground">·</span>
-          <span className={pendingOrder > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
-            {pendingOrder} chưa đặt
-          </span>
-          <span className="text-muted-foreground">·</span>
-          <span className={pendingArrive > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
-            {pendingArrive} đã đặt chưa về
-          </span>
-        </div>
-      )}
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Table className="min-w-[680px]">
+      <ListSummary
+        total={orders.length}
+        totalLabel="đợt"
+        stats={[
+          {
+            label: "chưa đặt",
+            count: orders.filter((o) => !o.ordered).length,
+            filterKey: "status",
+            filterValue: "pending",
+          },
+          {
+            label: "đã đặt chưa về",
+            count: orders.filter((o) => o.ordered && !o.arrived).length,
+            filterKey: "status",
+            filterValue: "ordered",
+          },
+        ]}
+      />
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <Table
+          className="min-w-[680px]"
+          containerClassName="max-h-[calc(100vh-22rem)]"
+        >
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead>

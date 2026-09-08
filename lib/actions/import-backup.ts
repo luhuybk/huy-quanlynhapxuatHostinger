@@ -19,7 +19,8 @@ export type ImportSummary = {
   };
   transactions: { created: number; skipped: number };
   chinaImports: { created: number; skipped: number };
-  chinaOrderItems: { created: number };
+  chinaOrderItems: { created: number; skipped: number };
+  vnOrders: { created: number; skipped: number };
   warnings: string[];
 };
 
@@ -59,6 +60,12 @@ function parseViDateTime(value: string): Date | null {
     Number(ss)
   );
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Khớp đúng cách app/api/export/route.ts ghi cột ngày ra file, để dò trùng
+// được với các file backup cũ (chưa có cột "Mã").
+function formatDateKey(d: Date): string {
+  return new Date(d).toLocaleString("vi-VN");
 }
 
 function randomPassword(): string {
@@ -101,7 +108,8 @@ export async function importBackup(formData: FormData): Promise<ImportSummary> {
     users: { created: 0, skipped: 0, tempPasswords: [] },
     transactions: { created: 0, skipped: 0 },
     chinaImports: { created: 0, skipped: 0 },
-    chinaOrderItems: { created: 0 },
+    chinaOrderItems: { created: 0, skipped: 0 },
+    vnOrders: { created: 0, skipped: 0 },
     warnings: [],
   };
 
@@ -390,27 +398,105 @@ export async function importBackup(formData: FormData): Promise<ImportSummary> {
     summary.chinaImports.created++;
   }
 
-  // --- Hàng Trung cần order (không có mã định danh -> luôn thêm mới) ---
+  // --- Hàng Trung cần order ---
   // "Hang can order" là tên sheet cũ, giữ lại để đọc được file backup cũ.
   const chinaOrderRows = [
     ...sheetRows(wb, "Hang Trung can order"),
     ...sheetRows(wb, "Hang can order"),
   ];
+  // File backup mới có cột "Mã" (id của dòng) -> nhập lại thì cập nhật đúng
+  // dòng cũ. File cũ không có cột đó, phải dò theo tên + SL + ngày điền để
+  // không tạo bản trùng mỗi lần nhập lại.
+  const existingOrderKeys = new Set(
+    (
+      await prisma.chinaOrderItem.findMany({
+        select: { itemName: true, quantity: true, createdAt: true },
+      })
+    ).map((it) => `${it.itemName}|${it.quantity}|${formatDateKey(it.createdAt)}`)
+  );
   for (const row of chinaOrderRows) {
     const itemName = str(row, "Tên hàng");
     if (!itemName) continue;
     const creatorName = str(row, "Người thêm");
     const createdById = userByName.get(creatorName) ?? session.user.id;
-    await prisma.chinaOrderItem.create({
+    const quantity = num(row, "Số lượng");
+    const data = {
+      itemName,
+      quantity,
+      note: str(row, "Ghi chú") || null,
+      ordered: truthy(row["Đã order"]),
+      // File backup cũ không có cột "Đã về" — không có cột thì đừng ghi đè,
+      // nếu không nhập lại file cũ sẽ xoá mất trạng thái đã về của các dòng.
+      ...("Đã về" in row ? { arrived: truthy(row["Đã về"]) } : {}),
+      createdById,
+    };
+
+    const id = str(row, "Mã");
+    if (id) {
+      const existing = await prisma.chinaOrderItem.findUnique({ where: { id } });
+      await prisma.chinaOrderItem.upsert({
+        where: { id },
+        create: { id, ...data },
+        update: data,
+      });
+      if (existing) summary.chinaOrderItems.skipped++;
+      else summary.chinaOrderItems.created++;
+      continue;
+    }
+
+    const key = `${itemName}|${quantity}|${str(row, "Ngày điền")}`;
+    if (existingOrderKeys.has(key)) {
+      summary.chinaOrderItems.skipped++;
+      continue;
+    }
+    await prisma.chinaOrderItem.create({ data });
+    existingOrderKeys.add(key);
+    summary.chinaOrderItems.created++;
+  }
+
+  // --- Đợt order hàng VN (gộp dòng theo "Mã đợt", mã là duy nhất -> bỏ qua
+  // đợt đã có để nhập lại nhiều lần không sinh bản trùng) ---
+  const vnOrderGroups = groupBy(
+    sheetRows(wb, "Hang VN can order").filter((r) => str(r, "Mã đợt")),
+    (r) => str(r, "Mã đợt")
+  );
+  for (const [code, rows] of vnOrderGroups) {
+    if (await prisma.vnOrder.findUnique({ where: { code } })) {
+      summary.vnOrders.skipped++;
+      continue;
+    }
+    const first = rows[0];
+    const brandName = str(first, "Brand");
+    const brandId = brandByName.get(brandName);
+    if (!brandId) {
+      summary.warnings.push(
+        `Bỏ qua đợt order "${code}": không tìm thấy brand "${brandName}"`
+      );
+      continue;
+    }
+    const date = parseViDateTime(str(first, "Ngày")) ?? new Date();
+    const creatorName = str(first, "Người tạo");
+    await prisma.vnOrder.create({
       data: {
-        itemName,
-        quantity: num(row, "Số lượng"),
-        note: str(row, "Ghi chú") || null,
-        ordered: truthy(row["Đã order"]),
-        createdById,
+        code,
+        date,
+        brandId,
+        note: str(first, "Ghi chú đợt") || null,
+        ordered: truthy(first["Đã đặt"]),
+        arrived: truthy(first["Đã về"]),
+        createdById: userByName.get(creatorName) ?? session.user.id,
+        items: {
+          create: rows
+            .filter((r) => str(r, "Tên hàng"))
+            .map((r) => ({
+              itemName: str(r, "Tên hàng"),
+              quantity: num(r, "Số lượng"),
+              note: str(r, "Ghi chú dòng") || null,
+            })),
+        },
       },
     });
-    summary.chinaOrderItems.created++;
+    summary.vnOrders.created++;
   }
 
   revalidatePath("/cai-dat");

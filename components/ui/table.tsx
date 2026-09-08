@@ -4,11 +4,17 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<"table"> & { containerClassName?: string }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      // Đây mới là khung cuộn thật của bảng. Truyền max-h qua containerClassName
+      // để bảng cuộn bên trong và tiêu đề cột dính lại được (xem TableHeader).
+      className={cn("relative w-full overflow-x-auto", containerClassName)}
     >
       <table
         data-slot="table"
@@ -23,7 +29,13 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      // Dính khi cuộn — chỉ có tác dụng khi khung bảng có giới hạn chiều cao.
+      // Dùng shadow thay border vì border-collapse làm viền của thead dính bị
+      // mất khi cuộn.
+      className={cn(
+        "sticky top-0 z-10 bg-background [&_th]:shadow-[inset_0_-1px_0_var(--border)]",
+        className
+      )}
       {...props}
     />
   )

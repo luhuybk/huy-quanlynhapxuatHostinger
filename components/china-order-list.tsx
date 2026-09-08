@@ -195,8 +195,11 @@ export function ChinaOrderList({
         </Button>
       </form>
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Table className="min-w-[640px]">
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <Table
+          className="min-w-[640px]"
+          containerClassName="max-h-[calc(100vh-24rem)]"
+        >
           <TableHeader>
             <TableRow>
               <TableHead className="w-16 text-center">Đã đặt</TableHead>

@@ -123,10 +123,14 @@ export async function GET() {
   );
 
   const orderItemRows = chinaOrderItems.map((it) => ({
+    // Cột "Mã" là id thật của dòng — nhờ nó mà nhập lại cùng một file backup
+    // sẽ cập nhật đúng dòng cũ thay vì tạo thêm bản trùng.
+    "Mã": it.id,
     "Tên hàng": it.itemName,
     "Số lượng": it.quantity,
     "Ghi chú": it.note ?? "",
     "Đã order": it.ordered ? "Có" : "Chưa",
+    "Đã về": it.arrived ? "Có" : "Chưa",
     "Ngày điền": formatDate(it.createdAt),
     "Người thêm": it.createdBy.name,
   }));

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil } from "lucide-react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { ListSummary, type SummaryStat } from "@/components/list-summary";
 import {
   updateItemFlags,
   updateTransactionFlags,
@@ -102,58 +103,47 @@ function StatusBadge({
   );
 }
 
-// Tóm tắt nhanh những phiếu còn dang dở của danh sách đang xem — để cuối
-// tháng nhìn phát là biết còn bao nhiêu phiếu chưa xong, không phải đếm tay.
-function ListSummary({
-  type,
-  transactions,
-}: {
-  type: "IMPORT" | "EXPORT";
-  transactions: TransactionListItem[];
-}) {
-  const total = transactions.length;
-  if (total === 0) return null;
-
-  const pending =
-    type === "IMPORT"
-      ? [
-          {
-            label: "chưa nhập kho",
-            count: transactions.filter((t) => !t.receivedWarehouse).length,
-          },
-          {
-            label: "chưa TT công nợ",
-            count: transactions.filter((t) => !t.paidDebt).length,
-          },
-        ]
-      : [
-          {
-            label: "chưa xuất",
-            count: transactions.filter((t) => !t.goodsShipped).length,
-          },
-          {
-            label: "chưa thanh toán",
-            count: transactions.filter((t) => !t.paid).length,
-          },
-          {
-            label: "chưa tất toán",
-            count: transactions.filter((t) => !t.settled).length,
-          },
-        ];
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem]">
-      <span className="font-semibold">{total} phiếu</span>
-      {pending.map((p) => (
-        <span key={p.label} className="flex items-center gap-2">
-          <span className="text-muted-foreground">·</span>
-          <span className={p.count > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
-            {p.count} {p.label}
-          </span>
-        </span>
-      ))}
-    </div>
-  );
+// Số phiếu còn dang dở của danh sách đang xem. Các key lọc khớp với
+// STATUS_FILTERS trong date-range-filter.tsx nên bấm vào là lọc được ngay.
+function pendingStats(
+  type: "IMPORT" | "EXPORT",
+  transactions: TransactionListItem[]
+): SummaryStat[] {
+  return type === "IMPORT"
+    ? [
+        {
+          label: "chưa nhập kho",
+          count: transactions.filter((t) => !t.receivedWarehouse).length,
+          filterKey: "receivedWarehouse",
+          filterValue: "0",
+        },
+        {
+          label: "chưa TT công nợ",
+          count: transactions.filter((t) => !t.paidDebt).length,
+          filterKey: "paidDebt",
+          filterValue: "0",
+        },
+      ]
+    : [
+        {
+          label: "chưa xuất",
+          count: transactions.filter((t) => !t.goodsShipped).length,
+          filterKey: "goodsShipped",
+          filterValue: "0",
+        },
+        {
+          label: "chưa thanh toán",
+          count: transactions.filter((t) => !t.paid).length,
+          filterKey: "paid",
+          filterValue: "0",
+        },
+        {
+          label: "chưa tất toán",
+          count: transactions.filter((t) => !t.settled).length,
+          filterKey: "settled",
+          filterValue: "0",
+        },
+      ];
 }
 
 export function TransactionList({
@@ -255,9 +245,16 @@ export function TransactionList({
 
   return (
     <>
-      <ListSummary type={type} transactions={transactions} />
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <Table className="min-w-[720px]">
+      <ListSummary
+        total={transactions.length}
+        totalLabel="phiếu"
+        stats={pendingStats(type, transactions)}
+      />
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <Table
+          className="min-w-[720px]"
+          containerClassName="max-h-[calc(100vh-22rem)]"
+        >
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead>

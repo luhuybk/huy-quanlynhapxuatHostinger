@@ -156,7 +156,14 @@ export function ImportBackupDialog() {
                 Phiếu nhập hàng Trung: +{xlsxSummary.chinaImports.created} mới,{" "}
                 {xlsxSummary.chinaImports.skipped} bỏ qua (đã tồn tại)
               </li>
-              <li>Hàng cần order: +{xlsxSummary.chinaOrderItems.created} mới</li>
+              <li>
+                Hàng Trung cần order: +{xlsxSummary.chinaOrderItems.created} mới,{" "}
+                {xlsxSummary.chinaOrderItems.skipped} bỏ qua (đã tồn tại)
+              </li>
+              <li>
+                Đợt order hàng VN: +{xlsxSummary.vnOrders.created} mới,{" "}
+                {xlsxSummary.vnOrders.skipped} bỏ qua (đã tồn tại)
+              </li>
             </ul>
 
             {xlsxSummary.users.tempPasswords.length > 0 && (

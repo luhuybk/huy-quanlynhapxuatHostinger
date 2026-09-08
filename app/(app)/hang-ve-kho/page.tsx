@@ -9,6 +9,7 @@ import { TransactionList } from "@/components/transaction-list";
 import { TransactionFilters } from "@/components/date-range-filter";
 import { ChinaImportForm } from "@/components/china-import-form";
 import { ChinaImportList } from "@/components/china-import-list";
+import { ExportListButton } from "@/components/export-list-button";
 import {
   Tabs,
   TabsContent,
@@ -66,7 +67,8 @@ export default async function WarehousePage({
         </TabsList>
 
         <TabsContent value="vn" className="mt-4 flex flex-col gap-4">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <ExportListButton type="IMPORT" />
             <TransactionForm
               type="IMPORT"
               role={role}
