@@ -18,25 +18,39 @@ export function ConfirmDeleteButton({
   disabled,
   title = "Xoá phiếu này?",
   description,
+  label,
 }: {
   onConfirm: () => void;
   disabled?: boolean;
   title?: string;
   description?: string;
+  // Có label thì hiện nút chữ (dùng trong hộp chi tiết), không thì chỉ icon.
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-        aria-label="Xoá"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {label ? (
+        <Button
+          variant="outline"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="w-fit"
+        >
+          <Trash2 className="h-4 w-4" /> {label}
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          aria-label="Xoá"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[calc(100%-1rem)] max-w-sm">
           <DialogHeader>

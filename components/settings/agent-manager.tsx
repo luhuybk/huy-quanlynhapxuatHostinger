@@ -59,7 +59,7 @@ function AgentFormFields({
         <div className="flex flex-col gap-2">
           <Label htmlFor="ownerId">Chủ sở hữu</Label>
           <Select name="ownerId" defaultValue={defaults?.ownerId ?? "none"}>
-            <SelectTrigger id="ownerId">
+            <SelectTrigger id="ownerId" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -134,19 +134,19 @@ export function VnOrderList({
       />
       <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <Table
-          className="min-w-[680px]"
+          className="sm:min-w-[680px]"
           containerClassName="max-h-[calc(100vh-22rem)]"
         >
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead>
               <TableHead>Brand</TableHead>
-              <TableHead>Số món</TableHead>
-              <TableHead>Tổng SL</TableHead>
+              <TableHead className="hidden sm:table-cell">Số món</TableHead>
+              <TableHead className="hidden sm:table-cell">Tổng SL</TableHead>
               <TableHead>Đã đặt</TableHead>
               <TableHead>Đã về</TableHead>
-              <TableHead>Người tạo</TableHead>
-              {isAdmin && <TableHead className="w-20" />}
+              <TableHead className="hidden sm:table-cell">Người tạo</TableHead>
+              {isAdmin && <TableHead className="hidden w-20 sm:table-cell" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -158,8 +158,8 @@ export function VnOrderList({
               >
                 <TableCell>{formatDate(o.date)}</TableCell>
                 <TableCell className="font-medium">{o.brand.name}</TableCell>
-                <TableCell>{o.items.length}</TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">{o.items.length}</TableCell>
+                <TableCell className="hidden sm:table-cell">
                   {o.items.reduce((sum, it) => sum + it.quantity, 0)}
                 </TableCell>
                 <TableCell>
@@ -172,11 +172,11 @@ export function VnOrderList({
                     {o.arrived ? "Đã về" : "Chưa"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="hidden text-muted-foreground sm:table-cell">
                   {o.createdBy.name}
                 </TableCell>
                 {isAdmin && (
-                  <TableCell className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="hidden gap-1 sm:flex" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" onClick={() => setEditingId(o.id)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -249,7 +249,19 @@ export function VnOrderList({
                 </div>
               </div>
 
-              <div className="-mx-4 overflow-x-auto px-4">
+              <div className="flex flex-col gap-2 sm:hidden">
+                {detail.items.map((it) => (
+                  <div key={it.id} className="flex flex-col gap-1 rounded-lg border p-3">
+                    <p className="font-medium">{it.itemName}</p>
+                    <p>
+                      Số lượng: <span className="font-medium">{it.quantity}</span>
+                    </p>
+                    {it.note && <p className="text-muted-foreground">{it.note}</p>}
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto sm:block">
                 <Table className="min-w-[420px]">
                   <TableHeader>
                     <TableRow>
@@ -275,16 +287,28 @@ export function VnOrderList({
                 <p className="text-muted-foreground">Ghi chú: {detail.note}</p>
               )}
               {isAdmin && (
-                <Button
-                  variant="outline"
-                  className="w-fit"
-                  onClick={() => {
-                    setEditingId(detail.id);
-                    setDetailId(null);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" /> Sửa đợt order
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-fit"
+                    onClick={() => {
+                      setEditingId(detail.id);
+                      setDetailId(null);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" /> Sửa đợt order
+                  </Button>
+                  <ConfirmDeleteButton
+                    disabled={isPending}
+                    label="Xoá đợt order"
+                    title="Xoá đợt order này?"
+                    description={`Đợt ${detail.brand.name} ngày ${formatDate(detail.date)} sẽ bị xoá vĩnh viễn.`}
+                    onConfirm={() => {
+                      setDetailId(null);
+                      handleDelete(detail.id);
+                    }}
+                  />
+                </div>
               )}
             </div>
           )}

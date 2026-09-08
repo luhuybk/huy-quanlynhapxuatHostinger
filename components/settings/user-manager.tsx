@@ -103,7 +103,7 @@ function CreateUserForm({
       <div className="flex flex-col gap-2">
         <Label>Vai trò</Label>
         <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -179,7 +179,7 @@ function EditUserForm({
       <div className="flex flex-col gap-2">
         <Label>Vai trò</Label>
         <Select value={role} onValueChange={(v) => setRole(v as Role)} disabled={isSelf}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

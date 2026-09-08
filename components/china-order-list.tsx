@@ -197,18 +197,24 @@ export function ChinaOrderList({
 
       <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <Table
-          className="min-w-[640px]"
+          className="sm:min-w-[640px]"
           containerClassName="max-h-[calc(100vh-24rem)]"
         >
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16 text-center">Đã đặt</TableHead>
-              <TableHead className="w-16 text-center">Đã về</TableHead>
+              <TableHead className="w-16 text-center">
+                <span className="sm:hidden">Đặt</span>
+                <span className="hidden sm:inline">Đã đặt</span>
+              </TableHead>
+              <TableHead className="w-16 text-center">
+                <span className="sm:hidden">Về</span>
+                <span className="hidden sm:inline">Đã về</span>
+              </TableHead>
               <TableHead>Tên hàng</TableHead>
               <TableHead className="w-20">SL</TableHead>
-              <TableHead>Ghi chú</TableHead>
-              <TableHead>Ngày điền</TableHead>
-              <TableHead>Người thêm</TableHead>
+              <TableHead className="hidden sm:table-cell">Ghi chú</TableHead>
+              <TableHead className="hidden sm:table-cell">Ngày điền</TableHead>
+              <TableHead className="hidden sm:table-cell">Người thêm</TableHead>
               <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
@@ -220,6 +226,12 @@ export function ChinaOrderList({
                   <TableCell />
                   <TableCell>
                     <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                    <Input
+                      className="mt-1 sm:hidden"
+                      value={editNote}
+                      placeholder="Ghi chú"
+                      onChange={(e) => setEditNote(e.target.value)}
+                    />
                   </TableCell>
                   <TableCell>
                     <Input
@@ -229,13 +241,13 @@ export function ChinaOrderList({
                       onChange={(e) => setEditQty(Number(e.target.value))}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Input value={editNote} onChange={(e) => setEditNote(e.target.value)} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {formatDate(it.createdAt)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {it.createdBy.name}
                   </TableCell>
                   <TableCell className="flex gap-1">
@@ -267,14 +279,23 @@ export function ChinaOrderList({
                     />
                   </TableCell>
                   <TableCell className={it.ordered ? "line-through" : undefined}>
-                    {it.itemName}
+                    <span className="block max-w-[8rem] truncate sm:max-w-none">
+                      {it.itemName}
+                    </span>
+                    {it.note && (
+                      <span className="block max-w-[8rem] truncate text-muted-foreground sm:hidden">
+                        {it.note}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>{it.quantity}</TableCell>
-                  <TableCell className="text-muted-foreground">{it.note}</TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
+                    {it.note}
+                  </TableCell>
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {formatDate(it.createdAt)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {it.createdBy.name}
                   </TableCell>
                   <TableCell className="flex gap-1">

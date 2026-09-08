@@ -79,14 +79,17 @@ export function ChinaImportList({
     <>
       <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <Table
-          className="min-w-[560px]"
+          className="sm:min-w-[560px]"
           containerClassName="max-h-[calc(100vh-20rem)]"
         >
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead>
-              <TableHead>Số mặt hàng</TableHead>
-              <TableHead>Người tạo</TableHead>
+              <TableHead>
+                <span className="sm:hidden">Số món</span>
+                <span className="hidden sm:inline">Số mặt hàng</span>
+              </TableHead>
+              <TableHead className="hidden sm:table-cell">Người tạo</TableHead>
               {isAdmin && <TableHead className="w-20" />}
             </TableRow>
           </TableHeader>
@@ -95,7 +98,7 @@ export function ChinaImportList({
               <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetailId(t.id)}>
                 <TableCell>{formatDate(t.date)}</TableCell>
                 <TableCell>{t.items.length}</TableCell>
-                <TableCell>{t.createdBy.name}</TableCell>
+                <TableCell className="hidden sm:table-cell">{t.createdBy.name}</TableCell>
                 {isAdmin && (
                   <TableCell className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" onClick={() => setEditingId(t.id)}>
@@ -139,7 +142,19 @@ export function ChinaImportList({
                 </p>
               </div>
 
-              <div className="-mx-4 overflow-x-auto px-4">
+              <div className="flex flex-col gap-2 sm:hidden">
+                {detail.items.map((it) => (
+                  <div
+                    key={it.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                  >
+                    <span>{it.itemName}</span>
+                    <span className="font-medium">{it.quantity}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto sm:block">
                 <Table className="min-w-[420px]">
                   <TableHeader>
                     <TableRow>

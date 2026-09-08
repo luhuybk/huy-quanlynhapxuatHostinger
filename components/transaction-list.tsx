@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil } from "lucide-react";
+import { Check, Minus, Pencil } from "lucide-react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ListSummary, type SummaryStat } from "@/components/list-summary";
 import { SortHeader } from "@/components/sort-header";
@@ -65,6 +65,15 @@ function formatDate(d: Date) {
   return new Date(d).toLocaleDateString("vi-VN");
 }
 
+// Trên điện thoại bảng hẹp, bỏ bớt 2 số của năm cho vừa màn hình.
+function formatDateShort(d: Date) {
+  return new Date(d).toLocaleDateString("vi-VN", {
+    day: "numeric",
+    month: "numeric",
+    year: "2-digit",
+  });
+}
+
 function partnerName(t: TransactionListItem) {
   return t.supplier?.name ?? t.agent?.name ?? "";
 }
@@ -97,9 +106,18 @@ function StatusBadge({
 }) {
   // Chỉ tô xanh khi đã xong; việc chưa xong để trung tính, nhìn cả bảng sẽ
   // thấy ngay dòng nào "thiếu màu xanh" thay vì cả cột rực lên một màu.
+  // Trên điện thoại thu lại còn dấu tích / gạch ngang cho vừa màn hình —
+  // tiêu đề cột vẫn cho biết đang nói về việc gì.
   return (
-    <Badge variant={done ? "success" : "outline"}>
-      {done ? doneLabel : pendingLabel}
+    <Badge
+      variant={done ? "success" : "outline"}
+      title={done ? doneLabel : pendingLabel}
+      className="px-1.5 sm:px-2.5"
+    >
+      <span className="sm:hidden">
+        {done ? <Check className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
+      </span>
+      <span className="hidden sm:inline">{done ? doneLabel : pendingLabel}</span>
     </Badge>
   );
 }
@@ -253,7 +271,7 @@ export function TransactionList({
       />
       <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <Table
-          className="min-w-[720px]"
+          className="sm:min-w-[720px]"
           containerClassName="max-h-[calc(100vh-22rem)]"
         >
           <TableHeader>
@@ -266,22 +284,37 @@ export function TransactionList({
                   {type === "IMPORT" ? "Đối tác" : "Đại lý"}
                 </SortHeader>
               </TableHead>
-              <TableHead>Số SKU</TableHead>
+              <TableHead className="hidden sm:table-cell">Số SKU</TableHead>
               {type === "IMPORT" ? (
                 <>
-                  <TableHead>Khớp SL</TableHead>
-                  <TableHead>Khớp công nợ</TableHead>
-                  <TableHead>Nhập kho</TableHead>
-                  <TableHead>Đã TT CN</TableHead>
+                  <TableHead className="hidden sm:table-cell">Khớp SL</TableHead>
+                  <TableHead className="hidden sm:table-cell">Khớp công nợ</TableHead>
+                  <TableHead>
+                    <span className="sm:hidden">Kho</span>
+                    <span className="hidden sm:inline">Nhập kho</span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="sm:hidden">CN</span>
+                    <span className="hidden sm:inline">Đã TT CN</span>
+                  </TableHead>
                 </>
               ) : (
                 <>
-                  <TableHead>Đã xuất</TableHead>
-                  <TableHead>Đã TT</TableHead>
-                  <TableHead>Tất toán</TableHead>
+                  <TableHead>
+                    <span className="sm:hidden">Xuất</span>
+                    <span className="hidden sm:inline">Đã xuất</span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="sm:hidden">TT</span>
+                    <span className="hidden sm:inline">Đã TT</span>
+                  </TableHead>
+                  <TableHead>
+                    <span className="sm:hidden">T.toán</span>
+                    <span className="hidden sm:inline">Tất toán</span>
+                  </TableHead>
                 </>
               )}
-              {isAdmin && <TableHead className="w-20" />}
+              {isAdmin && <TableHead className="hidden w-20 sm:table-cell" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -291,15 +324,22 @@ export function TransactionList({
                 className="cursor-pointer"
                 onClick={() => setDetailId(t.id)}
               >
-                <TableCell>{formatDate(t.date)}</TableCell>
-                <TableCell>{partnerName(t)}</TableCell>
-                <TableCell>{t.items.length}</TableCell>
+                <TableCell>
+                  <span className="sm:hidden">{formatDateShort(t.date)}</span>
+                  <span className="hidden sm:inline">{formatDate(t.date)}</span>
+                </TableCell>
+                <TableCell>
+                  <span className="block max-w-[6.5rem] truncate sm:max-w-none">
+                    {partnerName(t)}
+                  </span>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">{t.items.length}</TableCell>
                 {type === "IMPORT" ? (
                   <>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <MatchSummary items={t.items} field="matchedQuantity" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <MatchSummary items={t.items} field="matchedDebt" />
                     </TableCell>
                     <TableCell>
@@ -324,7 +364,7 @@ export function TransactionList({
                 )}
                 {isAdmin && (
                   <TableCell
-                    className="flex gap-1"
+                    className="hidden gap-1 sm:flex"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Button
@@ -447,7 +487,53 @@ export function TransactionList({
                 </div>
               )}
 
-              <div className="-mx-4 overflow-x-auto px-4">
+              {/* Điện thoại: mỗi sản phẩm một thẻ, khỏi phải kéo ngang. */}
+              <div className="flex flex-col gap-2 sm:hidden">
+                {detail.items.map((it) => (
+                  <div key={it.id} className="flex flex-col gap-2 rounded-lg border p-3">
+                    <div>
+                      <p className="font-medium">{it.sku.name}</p>
+                      <p className="text-muted-foreground">{it.sku.brand.name}</p>
+                    </div>
+                    <p>
+                      <span className="font-medium">{it.quantityInput}</span>{" "}
+                      {it.unitType === "CASE" ? "Thùng" : "Lẻ"}
+                      <span className="text-muted-foreground">
+                        {" "}
+                        = {it.quantityUnits} sp
+                      </span>
+                    </p>
+                    {type === "IMPORT" && (
+                      <div className="flex flex-wrap gap-x-6 gap-y-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`d-qty-${it.id}`}
+                            checked={it.matchedQuantity}
+                            disabled={isPending}
+                            onCheckedChange={() =>
+                              toggleFlag(it.id, "matchedQuantity", it.matchedQuantity)
+                            }
+                          />
+                          <label htmlFor={`d-qty-${it.id}`}>Khớp SL</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`d-debt-${it.id}`}
+                            checked={it.matchedDebt}
+                            disabled={isPending || !isAdmin}
+                            onCheckedChange={() =>
+                              toggleFlag(it.id, "matchedDebt", it.matchedDebt)
+                            }
+                          />
+                          <label htmlFor={`d-debt-${it.id}`}>Khớp CN</label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto sm:block">
                 <Table className="min-w-[560px]">
                   <TableHeader>
                     <TableRow>
@@ -507,16 +593,27 @@ export function TransactionList({
                 </p>
               )}
               {isAdmin && (
-                <Button
-                  variant="outline"
-                  className="w-fit"
-                  onClick={() => {
-                    setEditingId(detail.id);
-                    setDetailId(null);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" /> Sửa phiếu
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-fit"
+                    onClick={() => {
+                      setEditingId(detail.id);
+                      setDetailId(null);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" /> Sửa phiếu
+                  </Button>
+                  <ConfirmDeleteButton
+                    disabled={isPending}
+                    label="Xoá phiếu"
+                    description={`Phiếu ${detail.code} (${partnerName(detail)}) sẽ bị xoá vĩnh viễn.`}
+                    onConfirm={() => {
+                      setDetailId(null);
+                      handleDelete(detail.id);
+                    }}
+                  />
+                </div>
               )}
             </div>
           )}

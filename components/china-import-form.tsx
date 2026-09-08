@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
 import { createChinaImport, updateChinaImport } from "@/lib/actions/china-imports";
+import { toDateInputValue } from "@/lib/date-input";
 
 type Row = {
   rowId: string;
@@ -51,11 +52,6 @@ function rowsFromImport(t: EditableChinaImport): Row[] {
   }));
 }
 
-function toDateInputValue(d: Date | string) {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toISOString().slice(0, 10);
-}
-
 export function ChinaImportForm({
   editingImport,
   open: openProp,
@@ -74,7 +70,7 @@ export function ChinaImportForm({
 
   const [isPending, startTransition] = useTransition();
   const [date, setDate] = useState(() =>
-    editingImport ? toDateInputValue(editingImport.date) : new Date().toISOString().slice(0, 10)
+    editingImport ? toDateInputValue(editingImport.date) : toDateInputValue()
   );
   const [note, setNote] = useState(editingImport?.note ?? "");
   const [rows, setRows] = useState<Row[]>(() =>
@@ -95,7 +91,7 @@ export function ChinaImportForm({
       setNote(editingImport.note ?? "");
       setRows(rowsFromImport(editingImport));
     } else {
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(toDateInputValue());
       setNote("");
       setRows([emptyRow()]);
     }
@@ -146,6 +142,38 @@ export function ChinaImportForm({
     });
   }
 
+  // Các ô nhập của một dòng hàng, dùng chung cho thẻ (điện thoại) và bảng
+  // (máy tính) để hai giao diện không lệch nhau.
+  const nameField = (r: Row) => (
+    <Input
+      value={r.itemName}
+      placeholder="Tên hàng..."
+      onChange={(e) => updateRow(r.rowId, { itemName: e.target.value })}
+    />
+  );
+
+  const qtyField = (r: Row) => (
+    <Input
+      type="number"
+      inputMode="numeric"
+      min={1}
+      value={r.quantity}
+      onChange={(e) => updateRow(r.rowId, { quantity: Number(e.target.value) })}
+    />
+  );
+
+  const removeButton = (r: Row) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={() => removeRow(r.rowId)}
+      disabled={rows.length === 1}
+    >
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
@@ -155,82 +183,78 @@ export function ChinaImportForm({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1rem)] max-w-2xl flex-col overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1rem)] max-w-2xl flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{editingImport ? "Sửa phiếu" : "Phiếu"} nhập hàng Trung</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="date">Ngày</Label>
-            <Input
-              id="date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-              className="max-w-56"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+          {/* Chỉ phần này cuộn, để nút "Lưu phiếu" luôn nằm sẵn phía dưới. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="date">Ngày</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="max-w-56"
+              />
+            </div>
 
-          <div className="-mx-4 overflow-x-auto px-4">
-            <Table className="min-w-[420px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tên hàng</TableHead>
-                  <TableHead className="w-28">Số lượng</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.rowId}>
-                    <TableCell>
-                      <Input
-                        value={r.itemName}
-                        placeholder="Tên hàng..."
-                        onChange={(e) => updateRow(r.rowId, { itemName: e.target.value })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={r.quantity}
-                        onChange={(e) =>
-                          updateRow(r.rowId, { quantity: Number(e.target.value) })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRow(r.rowId)}
-                        disabled={rows.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            {/* Điện thoại: mỗi món là một thẻ, khỏi phải kéo ngang. */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {rows.map((r, i) => (
+                <div key={r.rowId} className="flex flex-col gap-3 rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-muted-foreground">Hàng {i + 1}</span>
+                    {removeButton(r)}
+                  </div>
+                  {nameField(r)}
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Số lượng</Label>
+                    {qtyField(r)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Máy tính: giữ dạng bảng cho nhập liệu nhanh. */}
+            <div className="hidden overflow-x-auto sm:block">
+              <Table className="min-w-[420px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tên hàng</TableHead>
+                    <TableHead className="w-28">Số lượng</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r) => (
+                    <TableRow key={r.rowId}>
+                      <TableCell>{nameField(r)}</TableCell>
+                      <TableCell>{qtyField(r)}</TableCell>
+                      <TableCell>{removeButton(r)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-fit"
-            onClick={() => setRows((prev) => [...prev, emptyRow()])}
-          >
-            <Plus className="h-4 w-4" /> Thêm dòng hàng
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-fit"
+              onClick={() => setRows((prev) => [...prev, emptyRow()])}
+            >
+              <Plus className="h-4 w-4" /> Thêm dòng hàng
+            </Button>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="note">Ghi chú</Label>
-            <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="note">Ghi chú</Label>
+              <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+            </div>
           </div>
 
           <DialogFooter>

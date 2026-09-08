@@ -59,7 +59,7 @@ function SkuFormFields({
       <div className="flex flex-col gap-2">
         <Label htmlFor="brandId">Brand</Label>
         <Select name="brandId" defaultValue={defaults?.brandId}>
-          <SelectTrigger id="brandId">
+          <SelectTrigger id="brandId" className="w-full">
             <SelectValue placeholder="Chọn brand" />
           </SelectTrigger>
           <SelectContent>
@@ -88,7 +88,7 @@ function SkuFormFields({
           name="supplierId"
           defaultValue={defaults?.supplierId ?? undefined}
         >
-          <SelectTrigger id="supplierId">
+          <SelectTrigger id="supplierId" className="w-full">
             <SelectValue placeholder="(Không bắt buộc)" />
           </SelectTrigger>
           <SelectContent>

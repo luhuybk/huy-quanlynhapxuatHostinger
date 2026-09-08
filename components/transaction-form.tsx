@@ -35,6 +35,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { SkuPicker, type SkuOption } from "@/components/sku-picker";
 import { createTransaction, updateTransaction } from "@/lib/actions/transactions";
 import { toUnits } from "@/lib/units";
+import { toDateInputValue } from "@/lib/date-input";
 
 type Row = {
   rowId: string;
@@ -102,11 +103,6 @@ function rowsFromTransaction(t: EditableTransaction): Row[] {
   }));
 }
 
-function toDateInputValue(d: Date | string) {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toISOString().slice(0, 10);
-}
-
 export function TransactionForm({
   type,
   role,
@@ -142,7 +138,7 @@ export function TransactionForm({
   const [date, setDate] = useState(() =>
     editingTransaction
       ? toDateInputValue(editingTransaction.date)
-      : new Date().toISOString().slice(0, 10)
+      : toDateInputValue()
   );
   const [partnerId, setPartnerId] = useState(
     editingTransaction?.partnerId ?? ""
@@ -185,7 +181,7 @@ export function TransactionForm({
       setPaid(editingTransaction.paid);
       setSettled(editingTransaction.settled);
     } else {
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(toDateInputValue());
       setPartnerId("");
       setNote("");
       setRows([emptyRow()]);
@@ -269,6 +265,82 @@ export function TransactionForm({
     });
   }
 
+  // Các ô nhập của một dòng sản phẩm. Khai báo một lần rồi dùng lại cho cả
+  // bảng (máy tính) lẫn thẻ (điện thoại), để hai giao diện không lệch nhau.
+  const skuField = (r: Row) => (
+    <SkuPicker
+      skus={r.brandId ? skus.filter((s) => s.brandId === r.brandId) : skus}
+      value={{ skuId: r.skuId, skuName: r.skuName, brandId: r.brandId }}
+      onSelect={(v) =>
+        updateRow(r.rowId, {
+          skuId: v.skuId,
+          skuName: v.skuName,
+          brandId: v.brandId,
+          unitsPerCase: v.unitsPerCase,
+        })
+      }
+    />
+  );
+
+  const brandField = (r: Row) => (
+    <Select
+      value={r.brandId}
+      onValueChange={(v) => updateRow(r.rowId, { brandId: v })}
+      disabled={!!r.skuId}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Brand" />
+      </SelectTrigger>
+      <SelectContent>
+        {brands.map((b) => (
+          <SelectItem key={b.id} value={b.id}>
+            {b.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const unitField = (r: Row) => (
+    <Select
+      value={r.unitType}
+      onValueChange={(v) => updateRow(r.rowId, { unitType: v as "CASE" | "UNIT" })}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="UNIT">Lẻ</SelectItem>
+        <SelectItem value="CASE">Thùng</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  const quantityField = (r: Row) => (
+    <Input
+      type="number"
+      inputMode="numeric"
+      min={1}
+      value={r.quantityInput}
+      onChange={(e) => updateRow(r.rowId, { quantityInput: Number(e.target.value) })}
+    />
+  );
+
+  const convertedText = (r: Row) =>
+    `${toUnits(r.quantityInput || 0, r.unitType, r.unitsPerCase)} sp`;
+
+  const removeButton = (r: Row) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={() => removeRow(r.rowId)}
+      disabled={rows.length === 1}
+    >
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
@@ -278,255 +350,243 @@ export function TransactionForm({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1rem)] max-w-4xl flex-col overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1rem)] max-w-4xl flex-col overflow-hidden sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             {editingTransaction ? "Sửa phiếu" : "Phiếu"} {label.toLowerCase()}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="date">Ngày</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+          {/* Chỉ phần này cuộn, để nút "Lưu phiếu" luôn nằm sẵn phía dưới. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="date">Ngày</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>{partnerLabel}</Label>
+                <Select value={partnerId} onValueChange={setPartnerId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={`Chọn ${partnerLabel.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {partners.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>{partnerLabel}</Label>
-              <Select value={partnerId} onValueChange={setPartnerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={`Chọn ${partnerLabel.toLowerCase()}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {partners.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          {type === "IMPORT" ? (
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="receivedWarehouse"
-                  checked={receivedWarehouse}
-                  onCheckedChange={(c) => setReceivedWarehouse(c === true)}
-                />
-                <Label htmlFor="receivedWarehouse" className="font-normal">
-                  Nhập kho
-                </Label>
+            {type === "IMPORT" ? (
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="receivedWarehouse"
+                    checked={receivedWarehouse}
+                    onCheckedChange={(c) => setReceivedWarehouse(c === true)}
+                  />
+                  <Label htmlFor="receivedWarehouse" className="font-normal">
+                    Nhập kho
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="paidDebt"
+                    checked={paidDebt}
+                    disabled={!isAdmin}
+                    onCheckedChange={(c) => setPaidDebt(c === true)}
+                  />
+                  <Label htmlFor="paidDebt" className="font-normal">
+                    Đã TT Công nợ
+                  </Label>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="paidDebt"
-                  checked={paidDebt}
-                  disabled={!isAdmin}
-                  onCheckedChange={(c) => setPaidDebt(c === true)}
-                />
-                <Label htmlFor="paidDebt" className="font-normal">
-                  Đã TT Công nợ
-                </Label>
+            ) : (
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="goodsShipped"
+                    checked={goodsShipped}
+                    onCheckedChange={(c) => setGoodsShipped(c === true)}
+                  />
+                  <Label htmlFor="goodsShipped" className="font-normal">
+                    Đã xuất hàng
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="paid"
+                    checked={paid}
+                    disabled={!isAdmin}
+                    onCheckedChange={(c) => setPaid(c === true)}
+                  />
+                  <Label htmlFor="paid" className="font-normal">
+                    Đã thanh toán
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="settled"
+                    checked={settled}
+                    disabled={!isAdmin}
+                    onCheckedChange={(c) => setSettled(c === true)}
+                  />
+                  <Label htmlFor="settled" className="font-normal">
+                    Tất toán
+                  </Label>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="goodsShipped"
-                  checked={goodsShipped}
-                  onCheckedChange={(c) => setGoodsShipped(c === true)}
-                />
-                <Label htmlFor="goodsShipped" className="font-normal">
-                  Đã xuất hàng
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="paid"
-                  checked={paid}
-                  disabled={!isAdmin}
-                  onCheckedChange={(c) => setPaid(c === true)}
-                />
-                <Label htmlFor="paid" className="font-normal">
-                  Đã thanh toán
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="settled"
-                  checked={settled}
-                  disabled={!isAdmin}
-                  onCheckedChange={(c) => setSettled(c === true)}
-                />
-                <Label htmlFor="settled" className="font-normal">
-                  Tất toán
-                </Label>
-              </div>
-            </div>
-          )}
+            )}
 
-          <div className="-mx-4 overflow-x-auto px-4">
-            <Table className={type === "IMPORT" ? "min-w-[880px]" : "min-w-[720px]"}>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-56">Sản phẩm</TableHead>
-                  <TableHead className="w-36">Brand</TableHead>
-                  <TableHead className="w-24">Đơn vị</TableHead>
-                  <TableHead className="w-20">Số lượng</TableHead>
-                  <TableHead className="w-24">Quy đổi</TableHead>
+            {/* Điện thoại: mỗi sản phẩm là một thẻ, khỏi phải kéo ngang. */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {rows.map((r, i) => (
+                <div key={r.rowId} className="flex flex-col gap-3 rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-muted-foreground">
+                      Sản phẩm {i + 1}
+                    </span>
+                    {removeButton(r)}
+                  </div>
+                  {skuField(r)}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Brand</Label>
+                      {brandField(r)}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Đơn vị</Label>
+                      {unitField(r)}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 items-end gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Số lượng</Label>
+                      {quantityField(r)}
+                    </div>
+                    <span className="pb-2 text-muted-foreground">
+                      = {convertedText(r)}
+                    </span>
+                  </div>
                   {type === "IMPORT" && (
-                    <>
-                      <TableHead className="w-20 text-center">Khớp SL</TableHead>
-                      <TableHead className="w-20 text-center">Khớp CN</TableHead>
-                    </>
+                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`qty-${r.rowId}`}
+                          checked={r.matchedQuantity}
+                          onCheckedChange={(c) =>
+                            updateRow(r.rowId, { matchedQuantity: c === true })
+                          }
+                        />
+                        <Label htmlFor={`qty-${r.rowId}`} className="font-normal">
+                          Khớp SL
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={`debt-${r.rowId}`}
+                          checked={r.matchedDebt}
+                          disabled={!isAdmin}
+                          onCheckedChange={(c) =>
+                            updateRow(r.rowId, { matchedDebt: c === true })
+                          }
+                        />
+                        <Label htmlFor={`debt-${r.rowId}`} className="font-normal">
+                          Khớp CN
+                        </Label>
+                      </div>
+                    </div>
                   )}
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.rowId}>
-                    <TableCell>
-                      <SkuPicker
-                        skus={
-                          r.brandId
-                            ? skus.filter((s) => s.brandId === r.brandId)
-                            : skus
-                        }
-                        value={{
-                          skuId: r.skuId,
-                          skuName: r.skuName,
-                          brandId: r.brandId,
-                        }}
-                        onSelect={(v) =>
-                          updateRow(r.rowId, {
-                            skuId: v.skuId,
-                            skuName: v.skuName,
-                            brandId: v.brandId,
-                            unitsPerCase: v.unitsPerCase,
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={r.brandId}
-                        onValueChange={(v) => updateRow(r.rowId, { brandId: v })}
-                        disabled={!!r.skuId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Brand" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {brands.map((b) => (
-                            <SelectItem key={b.id} value={b.id}>
-                              {b.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={r.unitType}
-                        onValueChange={(v) =>
-                          updateRow(r.rowId, { unitType: v as "CASE" | "UNIT" })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="UNIT">Lẻ</SelectItem>
-                          <SelectItem value="CASE">Thùng</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={r.quantityInput}
-                        onChange={(e) =>
-                          updateRow(r.rowId, {
-                            quantityInput: Number(e.target.value),
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {toUnits(
-                        r.quantityInput || 0,
-                        r.unitType,
-                        r.unitsPerCase
-                      )}{" "}
-                      sp
-                    </TableCell>
+                </div>
+              ))}
+            </div>
+
+            {/* Máy tính: giữ dạng bảng cho nhập liệu nhanh. */}
+            <div className="hidden overflow-x-auto sm:block">
+              <Table className={type === "IMPORT" ? "min-w-[880px]" : "min-w-[720px]"}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-56">Sản phẩm</TableHead>
+                    <TableHead className="w-36">Brand</TableHead>
+                    <TableHead className="w-24">Đơn vị</TableHead>
+                    <TableHead className="w-20">Số lượng</TableHead>
+                    <TableHead className="w-24">Quy đổi</TableHead>
                     {type === "IMPORT" && (
                       <>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={r.matchedQuantity}
-                            onCheckedChange={(c) =>
-                              updateRow(r.rowId, { matchedQuantity: c === true })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={r.matchedDebt}
-                            disabled={!isAdmin}
-                            onCheckedChange={(c) =>
-                              updateRow(r.rowId, { matchedDebt: c === true })
-                            }
-                          />
-                        </TableCell>
+                        <TableHead className="w-20 text-center">Khớp SL</TableHead>
+                        <TableHead className="w-20 text-center">Khớp CN</TableHead>
                       </>
                     )}
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRow(r.rowId)}
-                        disabled={rows.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                    <TableHead className="w-10" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r) => (
+                    <TableRow key={r.rowId}>
+                      <TableCell>{skuField(r)}</TableCell>
+                      <TableCell>{brandField(r)}</TableCell>
+                      <TableCell>{unitField(r)}</TableCell>
+                      <TableCell>{quantityField(r)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {convertedText(r)}
+                      </TableCell>
+                      {type === "IMPORT" && (
+                        <>
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={r.matchedQuantity}
+                              onCheckedChange={(c) =>
+                                updateRow(r.rowId, { matchedQuantity: c === true })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={r.matchedDebt}
+                              disabled={!isAdmin}
+                              onCheckedChange={(c) =>
+                                updateRow(r.rowId, { matchedDebt: c === true })
+                              }
+                            />
+                          </TableCell>
+                        </>
+                      )}
+                      <TableCell>{removeButton(r)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-fit"
-            onClick={() => setRows((prev) => [...prev, emptyRow()])}
-          >
-            <Plus className="h-4 w-4" /> Thêm dòng sản phẩm
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-fit"
+              onClick={() => setRows((prev) => [...prev, emptyRow()])}
+            >
+              <Plus className="h-4 w-4" /> Thêm dòng sản phẩm
+            </Button>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="note">Ghi chú</Label>
-            <Textarea
-              id="note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-            />
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="note">Ghi chú</Label>
+              <Textarea
+                id="note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+              />
+            </div>
           </div>
 
           <DialogFooter>

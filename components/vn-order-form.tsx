@@ -34,6 +34,7 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { SkuPicker, type SkuOption } from "@/components/sku-picker";
 import { createVnOrder, updateVnOrder } from "@/lib/actions/vn-orders";
+import { toDateInputValue } from "@/lib/date-input";
 
 type Row = {
   rowId: string;
@@ -69,11 +70,6 @@ function rowsFromOrder(o: EditableVnOrder): Row[] {
   }));
 }
 
-function toDateInputValue(d: Date | string) {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toISOString().slice(0, 10);
-}
-
 export function VnOrderForm({
   brands,
   skus,
@@ -96,7 +92,7 @@ export function VnOrderForm({
 
   const [isPending, startTransition] = useTransition();
   const [date, setDate] = useState(() =>
-    editingOrder ? toDateInputValue(editingOrder.date) : new Date().toISOString().slice(0, 10)
+    editingOrder ? toDateInputValue(editingOrder.date) : toDateInputValue()
   );
   const [brandId, setBrandId] = useState(editingOrder?.brandId ?? "");
   const [note, setNote] = useState(editingOrder?.note ?? "");
@@ -118,7 +114,7 @@ export function VnOrderForm({
   }
 
   function resetForm() {
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(toDateInputValue());
     setBrandId("");
     setNote("");
     setOrdered(false);
@@ -183,6 +179,46 @@ export function VnOrderForm({
     });
   }
 
+  // Các ô nhập của một dòng hàng, dùng chung cho thẻ (điện thoại) và bảng
+  // (máy tính) để hai giao diện không lệch nhau.
+  const skuField = (r: Row) => (
+    <SkuPicker
+      skus={brandSkus}
+      value={{ skuId: r.skuId, skuName: r.itemName, brandId }}
+      onSelect={(v) => updateRow(r.rowId, { skuId: v.skuId, itemName: v.skuName })}
+    />
+  );
+
+  const qtyField = (r: Row) => (
+    <Input
+      type="number"
+      inputMode="numeric"
+      min={1}
+      value={r.quantity}
+      onChange={(e) => updateRow(r.rowId, { quantity: Number(e.target.value) })}
+    />
+  );
+
+  const noteField = (r: Row) => (
+    <Input
+      value={r.note}
+      placeholder="Ghi chú (không bắt buộc)"
+      onChange={(e) => updateRow(r.rowId, { note: e.target.value })}
+    />
+  );
+
+  const removeButton = (r: Row) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={() => removeRow(r.rowId)}
+      disabled={rows.length === 1}
+    >
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
@@ -192,145 +228,137 @@ export function VnOrderForm({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1rem)] max-w-3xl flex-col overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1rem)] max-w-3xl flex-col overflow-hidden sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {editingOrder ? "Sửa đợt order" : "Đợt order"} hàng Việt Nam
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="vn-date">Ngày</Label>
-              <Input
-                id="vn-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+          {/* Chỉ phần này cuộn, để nút lưu luôn nằm sẵn phía dưới. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="vn-date">Ngày</Label>
+                <Input
+                  id="vn-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>Brand</Label>
+                <Select
+                  value={brandId}
+                  onValueChange={(v) => {
+                    setBrandId(v);
+                    // Đổi brand thì bỏ liên kết SKU cũ, giữ lại tên hàng đã gõ.
+                    setRows((prev) => prev.map((r) => ({ ...r, skuId: null })));
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chọn brand cần order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brands.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>Brand</Label>
-              <Select
-                value={brandId}
-                onValueChange={(v) => {
-                  setBrandId(v);
-                  // Đổi brand thì bỏ liên kết SKU cũ, giữ lại tên hàng đã gõ.
-                  setRows((prev) => prev.map((r) => ({ ...r, skuId: null })));
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn brand cần order" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="vn-ordered"
-                checked={ordered}
-                onCheckedChange={(c) => setOrdered(c === true)}
-              />
-              <Label htmlFor="vn-ordered" className="font-normal">
-                Đã đặt
-              </Label>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="vn-ordered"
+                  checked={ordered}
+                  onCheckedChange={(c) => setOrdered(c === true)}
+                />
+                <Label htmlFor="vn-ordered" className="font-normal">
+                  Đã đặt
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="vn-arrived"
+                  checked={arrived}
+                  onCheckedChange={(c) => setArrived(c === true)}
+                />
+                <Label htmlFor="vn-arrived" className="font-normal">
+                  Đã về
+                </Label>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="vn-arrived"
-                checked={arrived}
-                onCheckedChange={(c) => setArrived(c === true)}
-              />
-              <Label htmlFor="vn-arrived" className="font-normal">
-                Đã về
-              </Label>
-            </div>
-          </div>
 
-          <div className="-mx-4 overflow-x-auto px-4">
-            <Table className="min-w-[620px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-64">Sản phẩm</TableHead>
-                  <TableHead className="w-24">Số lượng</TableHead>
-                  <TableHead>Ghi chú</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.rowId}>
-                    <TableCell>
-                      <SkuPicker
-                        skus={brandSkus}
-                        value={{ skuId: r.skuId, skuName: r.itemName, brandId }}
-                        onSelect={(v) =>
-                          updateRow(r.rowId, { skuId: v.skuId, itemName: v.skuName })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={r.quantity}
-                        onChange={(e) =>
-                          updateRow(r.rowId, { quantity: Number(e.target.value) })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={r.note}
-                        placeholder="Ghi chú (không bắt buộc)"
-                        onChange={(e) => updateRow(r.rowId, { note: e.target.value })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRow(r.rowId)}
-                        disabled={rows.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            {/* Điện thoại: mỗi món là một thẻ, khỏi phải kéo ngang. */}
+            <div className="flex flex-col gap-3 sm:hidden">
+              {rows.map((r, i) => (
+                <div key={r.rowId} className="flex flex-col gap-3 rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-muted-foreground">Món {i + 1}</span>
+                    {removeButton(r)}
+                  </div>
+                  {skuField(r)}
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Số lượng</Label>
+                    {qtyField(r)}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Ghi chú</Label>
+                    {noteField(r)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Máy tính: giữ dạng bảng cho nhập liệu nhanh. */}
+            <div className="hidden overflow-x-auto sm:block">
+              <Table className="min-w-[620px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-64">Sản phẩm</TableHead>
+                    <TableHead className="w-24">Số lượng</TableHead>
+                    <TableHead>Ghi chú</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((r) => (
+                    <TableRow key={r.rowId}>
+                      <TableCell>{skuField(r)}</TableCell>
+                      <TableCell>{qtyField(r)}</TableCell>
+                      <TableCell>{noteField(r)}</TableCell>
+                      <TableCell>{removeButton(r)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-fit"
-            onClick={() => setRows((prev) => [...prev, emptyRow()])}
-          >
-            <Plus className="h-4 w-4" /> Thêm dòng hàng
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-fit"
+              onClick={() => setRows((prev) => [...prev, emptyRow()])}
+            >
+              <Plus className="h-4 w-4" /> Thêm dòng hàng
+            </Button>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="vn-note">Ghi chú</Label>
-            <Textarea
-              id="vn-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-            />
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="vn-note">Ghi chú</Label>
+              <Textarea
+                id="vn-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+              />
+            </div>
           </div>
 
           <DialogFooter>
