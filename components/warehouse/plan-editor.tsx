@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import {
   AISLE,
   MAX_SIDE,
   MIN_SIDE,
-  clampSide,
   countCellsByZone,
   parseGrid,
   resizeGrid,
@@ -35,6 +34,14 @@ export function PlanEditor({
 }) {
   const [cols, setCols] = useState(warehouse.cols);
   const [rows, setRows] = useState(warehouse.rows);
+  // Giữ ô nhập dưới dạng chuỗi: xoá trắng để gõ lại số khác là chuyện bình
+  // thường, mà Number("") ra 0 nên nếu đổi kích thước theo từng ký tự thì vừa
+  // xoá xong lưới đã co về tối thiểu.
+  const [colsText, setColsText] = useState(String(warehouse.cols));
+  const [rowsText, setRowsText] = useState(String(warehouse.rows));
+  // Lưới gốc chỉ nở ra chứ không co lại. cols/rows chỉ là khung đang nhìn và
+  // sẽ lưu, nên thu nhỏ rồi mở lại vẫn còn nguyên phần đã vẽ — chưa bấm Lưu
+  // thì chưa mất gì.
   const [grid, setGrid] = useState<LayoutGrid>(() =>
     parseGrid(warehouse.layout, warehouse.cols, warehouse.rows)
   );
@@ -43,20 +50,40 @@ export function PlanEditor({
   );
   const [isPending, startTransition] = useTransition();
 
-  const cellCounts = countCellsByZone(grid);
+  // Phần sẽ được lưu: cắt lưới gốc theo khung hiện tại.
+  const view = useMemo(
+    () => grid.slice(0, rows).map((row) => row.slice(0, cols)),
+    [grid, rows, cols]
+  );
+  const cellCounts = countCellsByZone(view);
 
   function applySize(nextCols: number, nextRows: number) {
-    const c = clampSide(nextCols, cols);
-    const r = clampSide(nextRows, rows);
-    setCols(c);
-    setRows(r);
-    setGrid((g) => resizeGrid(g, c, r));
+    setCols(nextCols);
+    setRows(nextRows);
+    setGrid((g) =>
+      resizeGrid(
+        g,
+        Math.max(nextCols, g[0]?.length ?? 0),
+        Math.max(nextRows, g.length)
+      )
+    );
+  }
+
+  // Chỉ đổi kích thước khi chuỗi đang gõ là một số hợp lệ; rời ô thì trả hiển
+  // thị về đúng giá trị đang dùng.
+  function handleSideChange(axis: "cols" | "rows", text: string) {
+    if (axis === "cols") setColsText(text);
+    else setRowsText(text);
+
+    const n = Number(text);
+    if (!text.trim() || !Number.isFinite(n) || n < MIN_SIDE || n > MAX_SIDE) return;
+    applySize(axis === "cols" ? n : cols, axis === "rows" ? n : rows);
   }
 
   function handleSave() {
     startTransition(async () => {
       try {
-        await saveWarehousePlan(warehouse.id, cols, rows, grid);
+        await saveWarehousePlan(warehouse.id, cols, rows, view);
         toast.success("Đã lưu sơ đồ kho");
         onClose();
       } catch (e) {
@@ -126,8 +153,9 @@ export function PlanEditor({
             inputMode="numeric"
             min={MIN_SIDE}
             max={MAX_SIDE}
-            value={cols}
-            onChange={(e) => applySize(Number(e.target.value), rows)}
+            value={colsText}
+            onChange={(e) => handleSideChange("cols", e.target.value)}
+            onBlur={() => setColsText(String(cols))}
             className="w-24"
           />
         </div>
@@ -139,18 +167,20 @@ export function PlanEditor({
             inputMode="numeric"
             min={MIN_SIDE}
             max={MAX_SIDE}
-            value={rows}
-            onChange={(e) => applySize(cols, Number(e.target.value))}
+            value={rowsText}
+            onChange={(e) => handleSideChange("rows", e.target.value)}
+            onBlur={() => setRowsText(String(rows))}
             className="w-24"
           />
         </div>
         <p className="text-sm text-muted-foreground">
-          Thu nhỏ lưới chỉ cắt phần ngoài rìa, phần đã vẽ bên trong vẫn giữ nguyên.
+          Thu nhỏ lưới chỉ giấu phần ngoài rìa. Mở rộng lại trước khi bấm Lưu thì
+          phần đã vẽ vẫn còn nguyên.
         </p>
       </div>
 
       <PlanGrid
-        grid={grid}
+        grid={view}
         zones={warehouse.zones}
         onPaint={(r, c) => setGrid((g) => setCell(g, r, c, brush))}
       />

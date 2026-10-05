@@ -41,12 +41,21 @@ function revalidateWarehouse() {
 
 // --- Kho ---
 
+// Ô để trống phải ra kích thước mặc định, không phải 0 — Number("") là 0 nên
+// clampSide sẽ kẹp xuống tối thiểu và tạo ra cái kho 2x2.
+function sideFromForm(formData: FormData, key: string, fallback: number): number {
+  const raw = String(formData.get(key) ?? "").trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) ? clampSide(n, fallback) : fallback;
+}
+
 export async function createWarehouse(formData: FormData) {
   await requireLayoutEditor();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Tên kho không được để trống");
-  const cols = clampSide(Number(formData.get("cols")), 12);
-  const rows = clampSide(Number(formData.get("rows")), 8);
+  const cols = sideFromForm(formData, "cols", 12);
+  const rows = sideFromForm(formData, "rows", 8);
   const note = String(formData.get("note") ?? "").trim() || null;
 
   const created = await prisma.warehouse.create({
@@ -118,6 +127,15 @@ export async function saveWarehousePlan(
 
 // --- Khu vực ---
 
+// Chỉ đổi thành thông báo "trùng mã" khi đúng là lỗi unique (P2002); lỗi khác
+// (mất kết nối chẳng hạn) phải giữ nguyên, báo sai thì càng khó tìm ra.
+function duplicateCodeError(e: unknown, code: string): unknown {
+  const prismaCode = (e as { code?: string })?.code;
+  return prismaCode === "P2002"
+    ? new Error(`Mã khu "${code}" đã được dùng ở một khu khác`)
+    : e;
+}
+
 function parseColor(formData: FormData, fallback: string): string {
   const raw = String(formData.get("color") ?? "").trim();
   return (ZONE_COLOR_KEYS as readonly string[]).includes(raw) ? raw : fallback;
@@ -136,10 +154,10 @@ export async function createZone(warehouseId: string, formData: FormData) {
     await prisma.zone.create({
       data: { warehouseId, code, name, color, sortOrder: await nextSortOrder("zone") },
     });
-  } catch {
+  } catch (e) {
     // code là mã in lên nhãn nên phải duy nhất toàn hệ thống, kể cả khi hai
     // kho khác nhau — trùng mã thì nhìn nhãn không biết hàng nằm kho nào.
-    throw new Error(`Mã khu "${code}" đã được dùng ở một khu khác`);
+    throw duplicateCodeError(e, code);
   }
   revalidateWarehouse();
 }
@@ -155,8 +173,8 @@ export async function updateZone(id: string, formData: FormData) {
 
   try {
     await prisma.zone.update({ where: { id }, data: { code, name, color } });
-  } catch {
-    throw new Error(`Mã khu "${code}" đã được dùng ở một khu khác`);
+  } catch (e) {
+    throw duplicateCodeError(e, code);
   }
   revalidateWarehouse();
 }
@@ -184,26 +202,10 @@ export async function deleteZone(id: string) {
   revalidateWarehouse();
 }
 
-export async function reorderZones(orderedIds: string[]) {
-  await requireLayoutEditor();
-  await Promise.all(
-    orderedIds.map((id, index) =>
-      prisma.zone.update({ where: { id }, data: { sortOrder: index } })
-    )
-  );
-  revalidateWarehouse();
-}
-
 // --- Gán hàng vào khu ---
 //
 // Dời hàng là việc trong kho nên ai đăng nhập cũng làm được, khác với việc
 // vẽ lại mặt bằng ở trên.
-
-export async function assignSkuZone(skuId: string, zoneId: string | null) {
-  await requireAuth();
-  await prisma.sku.update({ where: { id: skuId }, data: { zoneId } });
-  revalidateWarehouse();
-}
 
 // Chuyển nhiều mã hàng cùng lúc — sắp xếp lại kho là dời cả chục mã một lượt,
 // không ai sửa từng dòng.

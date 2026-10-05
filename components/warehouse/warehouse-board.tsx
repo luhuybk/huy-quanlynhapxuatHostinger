@@ -230,8 +230,12 @@ export function WarehouseBoard({
         </div>
       )}
 
+      {/* key theo khu: đổi khu là dựng lại bảng, nếu không thì danh sách đã tick
+          của khu trước còn nằm trong state và nút "Chuyển" sẽ dời nhầm những mã
+          không hề hiện trên màn hình. */}
       {zoneId === "__unassigned__" ? (
         <ZoneSkuPanel
+          key="unassigned"
           title={`Chưa gán khu (${unassigned.length} mã hàng)`}
           description="Chọn các mã rồi chuyển vào khu tương ứng."
           skus={unassigned}
@@ -240,6 +244,7 @@ export function WarehouseBoard({
         />
       ) : selectedZone ? (
         <ZoneSkuPanel
+          key={selectedZone.id}
           title={`Khu ${selectedZone.code}${selectedZone.name ? ` — ${selectedZone.name}` : ""}`}
           description={`${zoneSkus.length} mã hàng · ${cellCounts[selectedZone.id] ?? 0} ô trên sơ đồ`}
           skus={zoneSkus}
