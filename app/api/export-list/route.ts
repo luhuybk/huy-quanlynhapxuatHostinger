@@ -52,7 +52,10 @@ export async function GET(request: Request) {
       [partnerLabel]: t.supplier?.name ?? t.agent?.name ?? "",
       "SKU": it.sku.code,
       "Tên hàng": it.sku.name,
+      "Size": it.sku.size ?? "",
       "Brand": it.sku.brand.name,
+      // Khu vực để ra kho lấy/cất hàng theo đúng vị trí, khỏi phải tra lại.
+      "Khu": it.sku.zone?.code ?? "",
       "Đơn vị": it.unitType === "CASE" ? "Thùng" : "Lẻ",
       "Số lượng": it.quantityInput,
       "SL quy đổi": it.quantityUnits,

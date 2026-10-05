@@ -14,6 +14,8 @@ export type ImportJsonSummary = {
   chinaImports: number;
   chinaOrderItems: number;
   vnOrders: number;
+  warehouses: number;
+  zones: number;
   warnings: string[];
 };
 
@@ -62,6 +64,8 @@ export async function importBackupJson(formData: FormData): Promise<ImportJsonSu
     chinaImports: 0,
     chinaOrderItems: 0,
     vnOrders: 0,
+    warehouses: 0,
+    zones: 0,
     warnings: [],
   };
 
@@ -133,20 +137,59 @@ export async function importBackupJson(formData: FormData): Promise<ImportJsonSu
     }
   }
 
+  // Kho và khu vực phải vào trước SKU, vì Sku.zoneId trỏ tới Zone.
+  for (const w of arr("warehouses")) {
+    try {
+      const { id, name, cols, rows, layout, note, sortOrder, createdAt, zones } = w as {
+        id: string; name: string; cols: number; rows: number; layout: string;
+        note: string | null; sortOrder: number; createdAt: string;
+        zones: Record<string, unknown>[];
+      };
+      const data = { name, cols, rows, layout, note, sortOrder };
+      await prisma.warehouse.upsert({
+        where: { id },
+        create: { id, ...data, createdAt: toDate(createdAt) },
+        update: data,
+      });
+      summary.warehouses++;
+      for (const z of zones ?? []) {
+        const {
+          id: zoneId, code, name: zoneName, color, sortOrder: zoneSort, createdAt: zoneCreatedAt,
+        } = z as {
+          id: string; code: string; name: string | null; color: string;
+          sortOrder: number; createdAt: string;
+        };
+        const zoneData = { warehouseId: id, code, name: zoneName, color, sortOrder: zoneSort };
+        await prisma.zone.upsert({
+          where: { id: zoneId },
+          create: { id: zoneId, ...zoneData, createdAt: toDate(zoneCreatedAt) },
+          update: zoneData,
+        });
+        summary.zones++;
+      }
+    } catch (e) {
+      summary.warnings.push(`Kho "${w.name}": ${e instanceof Error ? e.message : "lỗi"}`);
+    }
+  }
+
   for (const s of arr("skus")) {
     try {
-      const { id, code, name, brandId, unitsPerCase, supplierId, isQuickCreate, sortOrder, createdAt } =
-        s as {
-          id: string; code: string; name: string; brandId: string; unitsPerCase: number;
-          supplierId: string | null; isQuickCreate: boolean; sortOrder: number; createdAt: string;
-        };
+      const {
+        id, code, name, size, brandId, unitsPerCase, supplierId, zoneId, isQuickCreate,
+        sortOrder, createdAt,
+      } = s as {
+        id: string; code: string; name: string; size: string | null; brandId: string;
+        unitsPerCase: number; supplierId: string | null; zoneId: string | null;
+        isQuickCreate: boolean; sortOrder: number; createdAt: string;
+      };
+      const data = {
+        code, name, size: size ?? null, brandId, unitsPerCase, supplierId,
+        zoneId: zoneId ?? null, isQuickCreate, sortOrder,
+      };
       await prisma.sku.upsert({
         where: { id },
-        create: {
-          id, code, name, brandId, unitsPerCase, supplierId, isQuickCreate, sortOrder,
-          createdAt: toDate(createdAt),
-        },
-        update: { code, name, brandId, unitsPerCase, supplierId, isQuickCreate, sortOrder },
+        create: { id, ...data, createdAt: toDate(createdAt) },
+        update: data,
       });
       summary.skus++;
     } catch (e) {

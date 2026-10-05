@@ -126,7 +126,11 @@ export async function getTransactions(
       items: {
         include: {
           sku: {
-            include: { brand: { select: { name: true } } },
+            include: {
+              brand: { select: { name: true } },
+              // Khu vực đang chứa, để phiếu nói luôn hàng nằm/cất ở đâu.
+              zone: { select: { code: true, color: true } },
+            },
           },
         },
       },

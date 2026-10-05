@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { zoneColor } from "@/lib/zone-colors";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -22,6 +23,10 @@ export type SkuOption = {
   brandName: string;
   unitsPerCase: number;
   isQuickCreate: boolean;
+  // Khu vực đang chứa — hiện ngay trong danh sách để lúc nhập/xuất biết luôn
+  // hàng nằm ở đâu mà không phải mở sơ đồ.
+  zoneCode?: string | null;
+  zoneColor?: string | null;
 };
 
 export function SkuPicker({
@@ -109,8 +114,20 @@ export function SkuPicker({
                         value.skuId === s.id ? "opacity-100" : "opacity-0"
                       )}
                     />
-                    <div className="flex flex-col">
-                      <span>{s.name}</span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="flex items-center gap-1.5">
+                        {s.zoneCode && (
+                          <span
+                            className={cn(
+                              "rounded px-1 text-xs font-medium",
+                              zoneColor(s.zoneColor ?? "teal").badge
+                            )}
+                          >
+                            {s.zoneCode}
+                          </span>
+                        )}
+                        <span className="truncate">{s.name}</span>
+                      </span>
                       <span className="text-xs text-muted-foreground">
                         {s.brandName} · {s.code}
                       </span>

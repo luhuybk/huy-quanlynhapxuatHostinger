@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -27,27 +29,39 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { createSku, updateSku, deleteSku, reorderSkus } from "@/lib/actions/catalog";
 import { SortableTable } from "@/components/settings/sortable-table";
 import { SortableRow } from "@/components/settings/sortable-row";
+import { cn } from "@/lib/utils";
+import { zoneColor } from "@/lib/zone-colors";
 
 type Sku = {
   id: string;
   code: string;
   name: string;
+  size: string | null;
   brandId: string;
   brand: { name: string };
   unitsPerCase: number;
   supplierId: string | null;
+  zoneId: string | null;
+  zone: { id: string; code: string; color: string } | null;
   isQuickCreate: boolean;
 };
 type Brand = { id: string; name: string };
 type Supplier = { id: string; name: string };
+type WarehouseOption = {
+  id: string;
+  name: string;
+  zones: { id: string; code: string; name: string | null }[];
+};
 
 function SkuFormFields({
   brands,
   suppliers,
+  warehouses,
   defaults,
 }: {
   brands: Brand[];
   suppliers: Supplier[];
+  warehouses: WarehouseOption[];
   defaults?: Sku;
 }) {
   return (
@@ -55,6 +69,13 @@ function SkuFormFields({
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">Tên sản phẩm</Label>
         <Input id="name" name="name" defaultValue={defaults?.name} required />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="size">Size (không bắt buộc)</Label>
+        <Input id="size" name="size" defaultValue={defaults?.size ?? ""} placeholder="56" />
+        <p className="text-sm text-muted-foreground">
+          Tách size ra khỏi tên để mã in ra thống nhất: 1 - AKUMA - Clay - 56.
+        </p>
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="brandId">Brand</Label>
@@ -100,6 +121,28 @@ function SkuFormFields({
           </SelectContent>
         </Select>
       </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="zoneId">Khu vực đang chứa</Label>
+        <Select name="zoneId" defaultValue={defaults?.zoneId ?? "none"}>
+          <SelectTrigger id="zoneId" className="w-full">
+            <SelectValue placeholder="Chưa gán khu" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Chưa gán khu</SelectItem>
+            {warehouses.map((w) => (
+              <SelectGroup key={w.id}>
+                <SelectLabel>{w.name}</SelectLabel>
+                {w.zones.map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.code}
+                    {z.name ? ` — ${z.name}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       {!defaults && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="code">Mã SKU (để trống để tự sinh)</Label>
@@ -124,10 +167,12 @@ export function SkuManager({
   skus,
   brands,
   suppliers,
+  warehouses,
 }: {
   skus: Sku[];
   brands: Brand[];
   suppliers: Supplier[];
+  warehouses: WarehouseOption[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
@@ -195,7 +240,11 @@ export function SkuManager({
               <DialogTitle>Thêm SKU</DialogTitle>
             </DialogHeader>
             <form action={handleCreate} className="flex flex-col gap-4">
-              <SkuFormFields brands={brands} suppliers={suppliers} />
+              <SkuFormFields
+                brands={brands}
+                suppliers={suppliers}
+                warehouses={warehouses}
+              />
               <DialogFooter>
                 <Button type="submit" disabled={isPending}>
                   Lưu
@@ -211,11 +260,12 @@ export function SkuManager({
         id="sku-manager"
         items={items}
         onReorder={handleReorder}
-        className="min-w-[720px]"
+        className="min-w-[800px]"
         header={
           <TableRow>
             <TableHead className="w-10" />
             <TableHead>Mã SKU</TableHead>
+            <TableHead>Khu</TableHead>
             <TableHead>Brand</TableHead>
             <TableHead>Tên sản phẩm</TableHead>
             <TableHead>Quy cách</TableHead>
@@ -229,8 +279,27 @@ export function SkuManager({
             {sorted.map((s) => (
               <SortableRow key={s.id} id={s.id}>
                 <TableCell className="font-mono text-xs">{s.code}</TableCell>
+                <TableCell>
+                  {s.zone ? (
+                    <span
+                      className={cn(
+                        "rounded px-1.5 py-0.5 text-xs font-medium",
+                        zoneColor(s.zone.color).badge
+                      )}
+                    >
+                      {s.zone.code}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell>{s.brand.name}</TableCell>
-                <TableCell>{s.name}</TableCell>
+                <TableCell>
+                  {s.name}
+                  {s.size && (
+                    <span className="text-muted-foreground"> · {s.size}</span>
+                  )}
+                </TableCell>
                 <TableCell>1 thùng = {s.unitsPerCase} sp</TableCell>
                 <TableCell>
                   {s.isQuickCreate && <Badge variant="secondary">Nhanh</Badge>}
@@ -252,7 +321,7 @@ export function SkuManager({
             ))}
             {sorted.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   Chưa có SKU nào
                 </TableCell>
               </TableRow>
@@ -275,6 +344,7 @@ export function SkuManager({
               <SkuFormFields
                 brands={brands}
                 suppliers={suppliers}
+                warehouses={warehouses}
                 defaults={editing}
               />
               <DialogFooter>

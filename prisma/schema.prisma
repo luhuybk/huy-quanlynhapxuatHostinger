@@ -67,17 +67,68 @@ model Sku {
   id            String   @id @default(cuid())
   code          String   @unique
   name          String
+  // Size tách riêng khỏi name để mã định danh in ra thống nhất
+  // ("1 - AKUMA - Clay - 56") và sau này lọc được theo size. Để trống được,
+  // nên dữ liệu cũ (size nằm lẫn trong tên) vẫn chạy bình thường.
+  size          String?
   brandId       String
   unitsPerCase  Int      @default(1)
   supplierId    String?
+  // Khu vực đang chứa hàng. Đây là *thuộc tính* chứ không phải phần của mã:
+  // dời hàng sang khu khác chỉ đổi trường này, code vẫn nguyên nên mọi phiếu
+  // nhập/xuất cũ không bị vỡ liên kết.
+  zoneId        String?
   isQuickCreate Boolean  @default(false)
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
 
   brand        Brand             @relation(fields: [brandId], references: [id])
   supplier     Supplier?         @relation(fields: [supplierId], references: [id])
+  zone         Zone?             @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   items        TransactionItem[]
   vnOrderItems VnOrderItem[]
+
+  @@index([zoneId])
+}
+
+// Mặt bằng một kho, vẽ theo lưới ô vuông. Hình dạng (chữ nhật, chữ L, hay
+// hình bất kỳ) không cần code riêng: mỗi ô tự mang một trong ba trạng thái —
+// thuộc một khu, là lối đi, hoặc nằm ngoài tường — nên cắt góc nào ra hình nào
+// cũng được. Nhiều kho = nhiều dòng ở bảng này.
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  cols      Int      @default(12)
+  rows      Int      @default(8)
+  // Lưới lưu dạng JSON: mảng 2 chiều theo [hàng][cột], mỗi ô là Zone.id,
+  // "aisle" (lối đi) hoặc null (ngoài tường). Lưới chỉ đọc/ghi trọn gói khi
+  // sửa sơ đồ, không bao giờ query lẻ từng ô, nên một cột Text gọn hơn hẳn
+  // một bảng vài trăm dòng ô vuông.
+  layout    String   @db.Text
+  note      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  zones Zone[]
+}
+
+// Khu vực trong một kho. code là phần đứng đầu mã định danh hàng hoá
+// ("1" trong "1 - AKUMA - Clay - 56") nên phải duy nhất trên toàn hệ thống,
+// không chỉ trong một kho — có nhiều kho thì đặt kiểu "A1", "B3" để nhìn mã
+// là biết hàng nằm kho nào.
+model Zone {
+  id          String   @id @default(cuid())
+  warehouseId String
+  code        String   @unique
+  name        String?
+  color       String   @default("teal")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  skus      Sku[]
+
+  @@index([warehouseId])
 }
 
 // SQLite has no native enum support; TransactionType is "IMPORT" | "EXPORT"

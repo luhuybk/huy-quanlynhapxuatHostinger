@@ -15,7 +15,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="hidden w-56 shrink-0 flex-col border-r bg-muted/20 md:flex">
+      <aside className="hidden w-56 shrink-0 flex-col border-r bg-muted/20 md:flex print:hidden">
         <div className="border-b px-4 py-4">
           <p className="font-semibold">Quản lý kho</p>
           <p className="text-xs text-muted-foreground">
@@ -29,7 +29,7 @@ export default async function AppLayout({
         </div>
       </aside>
 
-      <header className="flex items-center justify-between border-b px-4 py-3 md:hidden">
+      <header className="flex items-center justify-between border-b px-4 py-3 md:hidden print:hidden">
         <div>
           <p className="font-semibold">Quản lý kho</p>
           <p className="text-xs text-muted-foreground">
@@ -42,7 +42,7 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main className="flex-1 overflow-x-auto p-4 pb-20 md:p-6 md:pb-6">
+      <main className="flex-1 overflow-x-auto p-4 pb-20 md:p-6 md:pb-6 print:p-0">
         {children}
       </main>
       <MobileBottomNav />

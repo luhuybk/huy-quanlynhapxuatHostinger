@@ -60,6 +60,7 @@ export async function GET() {
       include: {
         brand: { select: { name: true } },
         supplier: { select: { name: true } },
+        zone: { select: { code: true, warehouse: { select: { name: true } } } },
       },
     }),
     prisma.brand.findMany({ orderBy: { name: "asc" } }),
@@ -163,9 +164,12 @@ export async function GET() {
   const skuRows = skus.map((s) => ({
     "Mã SKU": s.code,
     "Tên hàng": s.name,
+    "Size": s.size ?? "",
     "Brand": s.brand.name,
     "SL/thùng": s.unitsPerCase,
     "Nhà cung cấp": s.supplier?.name ?? "",
+    "Kho": s.zone?.warehouse.name ?? "",
+    "Khu": s.zone?.code ?? "",
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(skuRows), "SKU");
 

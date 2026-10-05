@@ -171,9 +171,17 @@ export async function reorderBrands(orderedIds: string[]) {
   revalidatePath("/cai-dat");
   revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
+  revalidatePath("/so-do-kho");
 }
 
 // --- Sku ---
+
+// Select của khu vực gửi "none" khi chưa gán khu, vì Radix Select không nhận
+// value rỗng — giống parseOwnerId ở trên.
+function parseZoneId(formData: FormData): string | null {
+  const raw = String(formData.get("zoneId") ?? "").trim();
+  return raw && raw !== "none" ? raw : null;
+}
 
 export async function createSku(formData: FormData) {
   await requireAuth();
@@ -181,6 +189,8 @@ export async function createSku(formData: FormData) {
   const brandId = String(formData.get("brandId") ?? "");
   const unitsPerCase = Number(formData.get("unitsPerCase") ?? 1);
   const supplierId = String(formData.get("supplierId") ?? "") || null;
+  const size = String(formData.get("size") ?? "").trim() || null;
+  const zoneId = parseZoneId(formData);
   const isQuickCreate = formData.get("isQuickCreate") === "on";
   let code = String(formData.get("code") ?? "").trim();
 
@@ -201,9 +211,11 @@ export async function createSku(formData: FormData) {
     data: {
       code,
       name,
+      size,
       brandId,
       unitsPerCase,
       supplierId,
+      zoneId,
       isQuickCreate,
       sortOrder: await nextSortOrder("sku"),
     },
@@ -211,6 +223,7 @@ export async function createSku(formData: FormData) {
   revalidatePath("/cai-dat");
   revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
+  revalidatePath("/so-do-kho");
 }
 
 export async function updateSku(id: string, formData: FormData) {
@@ -219,6 +232,8 @@ export async function updateSku(id: string, formData: FormData) {
   const brandId = String(formData.get("brandId") ?? "");
   const unitsPerCase = Number(formData.get("unitsPerCase") ?? 1);
   const supplierId = String(formData.get("supplierId") ?? "") || null;
+  const size = String(formData.get("size") ?? "").trim() || null;
+  const zoneId = parseZoneId(formData);
   const isQuickCreate = formData.get("isQuickCreate") === "on";
 
   if (!name) throw new Error("Tên sản phẩm không được để trống");
@@ -229,11 +244,12 @@ export async function updateSku(id: string, formData: FormData) {
 
   await prisma.sku.update({
     where: { id },
-    data: { name, brandId, unitsPerCase, supplierId, isQuickCreate },
+    data: { name, size, brandId, unitsPerCase, supplierId, zoneId, isQuickCreate },
   });
   revalidatePath("/cai-dat");
   revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
+  revalidatePath("/so-do-kho");
 }
 
 export async function deleteSku(id: string) {
@@ -242,6 +258,7 @@ export async function deleteSku(id: string) {
   revalidatePath("/cai-dat");
   revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
+  revalidatePath("/so-do-kho");
 }
 
 export async function reorderSkus(orderedIds: string[]) {
@@ -254,6 +271,7 @@ export async function reorderSkus(orderedIds: string[]) {
   revalidatePath("/cai-dat");
   revalidatePath("/hang-ve-kho");
   revalidatePath("/xuat-hang");
+  revalidatePath("/so-do-kho");
 }
 
 export async function findOrCreateSkuByName(

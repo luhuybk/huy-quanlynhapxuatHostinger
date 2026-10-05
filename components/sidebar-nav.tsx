@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { PackagePlus, PackageMinus, ClipboardList, Settings } from "lucide-react";
+import { PackagePlus, PackageMinus, ClipboardList, LayoutGrid, Settings } from "lucide-react";
 
 // Xếp theo đúng luồng hàng: cần order → về kho → xuất đi.
 const links = [
   { href: "/hang-can-order", label: "Hàng cần order", shortLabel: "Cần order", icon: ClipboardList },
   { href: "/hang-ve-kho", label: "Hàng về kho", shortLabel: "Về kho", icon: PackagePlus },
   { href: "/xuat-hang", label: "Xuất hàng", shortLabel: "Xuất hàng", icon: PackageMinus },
+  { href: "/so-do-kho", label: "Sơ đồ kho", shortLabel: "Sơ đồ", icon: LayoutGrid },
   { href: "/cai-dat", label: "Cài đặt", shortLabel: "Cài đặt", icon: Settings },
 ];
 
@@ -44,7 +45,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background md:hidden print:hidden">
       {links.map(({ href, shortLabel, icon: Icon }) => {
         const active = pathname.startsWith(href);
         return (

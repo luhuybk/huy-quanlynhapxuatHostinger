@@ -29,7 +29,7 @@ export default async function SettingsPage() {
     ? { OR: [{ ownerId: null }, { ownerId: session!.user.id }] }
     : undefined;
 
-  const [suppliers, agents, brands, skus, users] = await Promise.all([
+  const [suppliers, agents, brands, skus, users, warehouses] = await Promise.all([
     prisma.supplier.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.agent.findMany({
       where: agentWhere,
@@ -40,7 +40,10 @@ export default async function SettingsPage() {
     prisma.sku.findMany({
       // Mặc định nhóm theo Brand (A-Z), trong từng Brand vẫn giữ thứ tự kéo thả.
       orderBy: [{ brand: { name: "asc" } }, { sortOrder: "asc" }],
-      include: { brand: { select: { name: true } } },
+      include: {
+        brand: { select: { name: true } },
+        zone: { select: { id: true, code: true, color: true } },
+      },
     }),
     isAdmin
       ? prisma.user.findMany({
@@ -48,6 +51,15 @@ export default async function SettingsPage() {
           select: { id: true, email: true, name: true, role: true },
         })
       : Promise.resolve([]),
+    prisma.warehouse.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: {
+        zones: {
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, code: true, name: true },
+        },
+      },
+    }),
   ]);
 
   return (
@@ -79,7 +91,12 @@ export default async function SettingsPage() {
           {isAdmin && <TabsTrigger value="users">Người dùng</TabsTrigger>}
         </TabsList>
         <TabsContent value="sku" className="mt-4">
-          <SkuManager skus={skus} brands={brands} suppliers={suppliers} />
+          <SkuManager
+            skus={skus}
+            brands={brands}
+            suppliers={suppliers}
+            warehouses={warehouses}
+          />
         </TabsContent>
         <TabsContent value="supplier" className="mt-4">
           <SupplierManager suppliers={suppliers} />

@@ -44,7 +44,10 @@ export default async function WarehousePage({
       prisma.brand.findMany({ orderBy: { sortOrder: "asc" } }),
       prisma.sku.findMany({
         orderBy: { sortOrder: "asc" },
-        include: { brand: { select: { name: true } } },
+        include: {
+          brand: { select: { name: true } },
+          zone: { select: { code: true, color: true } },
+        },
       }),
     ]);
 
@@ -56,6 +59,8 @@ export default async function WarehousePage({
     brandName: s.brand.name,
     unitsPerCase: s.unitsPerCase,
     isQuickCreate: s.isQuickCreate,
+    zoneCode: s.zone?.code ?? null,
+    zoneColor: s.zone?.color ?? null,
   }));
 
   return (

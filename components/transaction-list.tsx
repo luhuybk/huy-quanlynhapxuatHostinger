@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Check, Minus, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { zoneColor } from "@/lib/zone-colors";
+import { compareZoneCode } from "@/lib/sku-label";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ListSummary, type SummaryStat } from "@/components/list-summary";
 import { SortHeader } from "@/components/sort-header";
@@ -54,7 +57,15 @@ type TransactionListItem = {
     quantityUnits: number;
     matchedQuantity: boolean;
     matchedDebt: boolean;
-    sku: { id: string; name: string; code: string; brandId: string; unitsPerCase: number; brand: { name: string } };
+    sku: {
+      id: string;
+      name: string;
+      code: string;
+      brandId: string;
+      unitsPerCase: number;
+      brand: { name: string };
+      zone: { code: string; color: string } | null;
+    };
   }[];
 };
 
@@ -187,10 +198,22 @@ export function TransactionList({
   const [isPending, startTransition] = useTransition();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Xếp các món theo khu để đi một vòng kho là lấy/cất đủ, khỏi chạy qua lại.
+  const [sortByZone, setSortByZone] = useState(false);
   // Derived from the (possibly refreshed) transactions prop so toggling a
   // checkbox in the dialog reflects the latest state without closing it.
   const detail = transactions.find((t) => t.id === detailId) ?? null;
   const editing = transactions.find((t) => t.id === editingId) ?? null;
+
+  const detailItems = useMemo(() => {
+    if (!detail) return [];
+    if (!sortByZone) return detail.items;
+    return [...detail.items].sort(
+      (a, b) =>
+        compareZoneCode(a.sku.zone?.code, b.sku.zone?.code) ||
+        a.sku.name.localeCompare(b.sku.name, "vi")
+    );
+  }, [detail, sortByZone]);
 
   function toggleFlag(
     itemId: string,
@@ -487,12 +510,35 @@ export function TransactionList({
                 </div>
               )}
 
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium">Sản phẩm ({detail.items.length})</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortByZone((v) => !v)}
+                >
+                  {sortByZone ? "Theo thứ tự nhập" : "Xếp theo khu"}
+                </Button>
+              </div>
+
               {/* Điện thoại: mỗi sản phẩm một thẻ, khỏi phải kéo ngang. */}
               <div className="flex flex-col gap-2 sm:hidden">
-                {detail.items.map((it) => (
+                {detailItems.map((it) => (
                   <div key={it.id} className="flex flex-col gap-2 rounded-lg border p-3">
                     <div>
-                      <p className="font-medium">{it.sku.name}</p>
+                      <p className="flex items-center gap-1.5 font-medium">
+                        {it.sku.zone && (
+                          <span
+                            className={cn(
+                              "rounded px-1 text-xs",
+                              zoneColor(it.sku.zone.color).badge
+                            )}
+                          >
+                            {it.sku.zone.code}
+                          </span>
+                        )}
+                        {it.sku.name}
+                      </p>
                       <p className="text-muted-foreground">{it.sku.brand.name}</p>
                     </div>
                     <p>
@@ -534,9 +580,10 @@ export function TransactionList({
               </div>
 
               <div className="hidden overflow-x-auto sm:block">
-                <Table className="min-w-[560px]">
+                <Table className="min-w-[620px]">
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Khu</TableHead>
                       <TableHead>Sản phẩm</TableHead>
                       <TableHead>Số lượng</TableHead>
                       <TableHead>Đơn vị</TableHead>
@@ -551,8 +598,22 @@ export function TransactionList({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {detail.items.map((it) => (
+                    {detailItems.map((it) => (
                       <TableRow key={it.id}>
+                        <TableCell>
+                          {it.sku.zone ? (
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-xs font-medium",
+                                zoneColor(it.sku.zone.color).badge
+                              )}
+                            >
+                              {it.sku.zone.code}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>{it.sku.name}</TableCell>
                         <TableCell className="font-medium">{it.quantityInput}</TableCell>
                         <TableCell>

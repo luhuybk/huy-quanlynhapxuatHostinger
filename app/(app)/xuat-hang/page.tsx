@@ -42,7 +42,10 @@ export default async function ExportPage({
     prisma.brand.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.sku.findMany({
       orderBy: { sortOrder: "asc" },
-      include: { brand: { select: { name: true } } },
+      include: {
+        brand: { select: { name: true } },
+        zone: { select: { code: true, color: true } },
+      },
     }),
     prisma.user.findMany({
       where: { role: "STAFF" },
@@ -59,6 +62,8 @@ export default async function ExportPage({
     brandName: s.brand.name,
     unitsPerCase: s.unitsPerCase,
     isQuickCreate: s.isQuickCreate,
+    zoneCode: s.zone?.code ?? null,
+    zoneColor: s.zone?.color ?? null,
   }));
 
   return (
