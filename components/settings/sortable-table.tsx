@@ -27,6 +27,7 @@ export function SortableTable<T extends { id: string }>({
   onReorder,
   header,
   className,
+  disabled,
   children,
 }: {
   // Stable id for DndContext's internal a11y id generator — without it,
@@ -38,6 +39,10 @@ export function SortableTable<T extends { id: string }>({
   onReorder: (reordered: T[]) => void;
   header: ReactNode;
   className?: string;
+  // Khi danh sách đang bị lọc thì phải khoá kéo-thả: onReorder ghi sortOrder
+  // theo vị trí trong mảng truyền vào, mà mảng đó chỉ còn vài dòng đang hiện,
+  // kéo một cái là đánh số lại đè lên thứ tự của những dòng đang bị ẩn.
+  disabled?: boolean;
   children: (items: T[]) => ReactNode;
 }) {
   const sensors = useSensors(
@@ -52,6 +57,15 @@ export function SortableTable<T extends { id: string }>({
     const newIndex = items.findIndex((item) => item.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     onReorder(arrayMove(items, oldIndex, newIndex));
+  }
+
+  if (disabled) {
+    return (
+      <Table className={className}>
+        <TableHeader>{header}</TableHeader>
+        <TableBody>{children(items)}</TableBody>
+      </Table>
+    );
   }
 
   return (

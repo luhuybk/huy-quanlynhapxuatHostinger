@@ -80,7 +80,11 @@ export function PlanGrid({
           thì lúc đang tô sẽ giằng nhau giữa vuốt-để-cuộn và vuốt-để-vẽ.
           Máy tính: ô cố định 36px, rộng bao nhiêu cũng được, cuộn ngang nếu cần.
           Các ô dính liền nhau (không gap) để đường tường nối thành nét liền. */}
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      {/* Kho 24 hàng cao gần 900px, để nguyên thì cuộn mãi mới tới danh sách
+          khu. Trên máy tính giữ sơ đồ trong khung cao tối đa 65% màn hình và
+          cho nó tự cuộn bên trong. Điện thoại thì ô đã co vừa bề ngang rồi
+          nên không cần giới hạn. */}
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:max-h-[65vh] sm:overflow-auto sm:px-0">
         <div
           className={cn(
             "grid w-full rounded-lg border bg-background p-2",

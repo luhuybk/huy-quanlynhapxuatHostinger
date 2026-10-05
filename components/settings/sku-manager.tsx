@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,6 +184,17 @@ export function SkuManager({
     setItems(skus);
   }
 
+  // Lọc theo khu: 97 dòng rà bằng mắt rất cực, nhất là khi cần tìm những mã
+  // chưa gán khu. "none" = chưa gán khu.
+  const [zoneFilter, setZoneFilter] = useState("all");
+  const filtering = zoneFilter !== "all";
+  const visible = useMemo(() => {
+    if (zoneFilter === "all") return items;
+    if (zoneFilter === "none") return items.filter((s) => !s.zoneId);
+    return items.filter((s) => s.zoneId === zoneFilter);
+  }, [items, zoneFilter]);
+  const unassignedCount = items.filter((s) => !s.zoneId).length;
+
   function handleCreate(formData: FormData) {
     startTransition(async () => {
       try {
@@ -228,7 +239,34 @@ export function SkuManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={zoneFilter} onValueChange={setZoneFilter}>
+            <SelectTrigger className="w-full sm:w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả khu ({items.length} mã)</SelectItem>
+              <SelectItem value="none">Chưa gán khu ({unassignedCount} mã)</SelectItem>
+              {warehouses.map((w) => (
+                <SelectGroup key={w.id}>
+                  <SelectLabel>{w.name}</SelectLabel>
+                  {w.zones.map((z) => (
+                    <SelectItem key={z.id} value={z.id}>
+                      {z.code}
+                      {z.name ? ` — ${z.name}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+          {filtering && (
+            <span className="text-sm text-muted-foreground">
+              {visible.length} mã — đang lọc nên tạm khoá kéo-thả sắp xếp
+            </span>
+          )}
+        </div>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" disabled={brands.length === 0}>
@@ -258,8 +296,9 @@ export function SkuManager({
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <SortableTable
         id="sku-manager"
-        items={items}
+        items={visible}
         onReorder={handleReorder}
+        disabled={filtering}
         className="min-w-[800px]"
         header={
           <TableRow>
@@ -277,7 +316,7 @@ export function SkuManager({
         {(sorted) => (
           <>
             {sorted.map((s) => (
-              <SortableRow key={s.id} id={s.id}>
+              <SortableRow key={s.id} id={s.id} disabled={filtering}>
                 <TableCell className="font-mono text-xs">{s.code}</TableCell>
                 <TableCell>
                   {s.zone ? (
@@ -322,7 +361,7 @@ export function SkuManager({
             {sorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-muted-foreground">
-                  Chưa có SKU nào
+                  {filtering ? "Không có mã hàng nào ở khu này" : "Chưa có SKU nào"}
                 </TableCell>
               </TableRow>
             )}

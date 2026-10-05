@@ -8,11 +8,28 @@ import { TableCell, TableRow } from "@/components/ui/table";
 
 export function SortableRow({
   id,
+  disabled,
   children,
 }: {
   id: string;
+  disabled?: boolean;
   children: ReactNode;
 }) {
+  if (disabled) return <PlainRow>{children}</PlainRow>;
+  return <DraggableRow id={id}>{children}</DraggableRow>;
+}
+
+// Giữ nguyên ô tay cầm cho khỏi lệch số cột so với phần đầu bảng.
+function PlainRow({ children }: { children: ReactNode }) {
+  return (
+    <TableRow>
+      <TableCell className="w-10" />
+      {children}
+    </TableRow>
+  );
+}
+
+function DraggableRow({ id, children }: { id: string; children: ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });

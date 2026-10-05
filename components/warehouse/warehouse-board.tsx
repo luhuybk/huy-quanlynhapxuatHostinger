@@ -169,7 +169,11 @@ export function WarehouseBoard({
       {editingPlan ? (
         <PlanEditor warehouse={warehouse} onClose={() => setEditingPlan(false)} />
       ) : (
-        <div className="flex flex-col gap-3">
+        // Màn rộng: sơ đồ bên trái, hàng trong khu bên phải và dính lại khi
+        // cuộn — bấm một ô là thấy danh sách ngay cạnh, khỏi nhảy xuống cuối
+        // trang rồi lại kéo ngược lên.
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-muted-foreground">
               {warehouse.cols} × {warehouse.rows} ô — bấm vào một ô để xem hàng trong khu đó
@@ -228,30 +232,38 @@ export function WarehouseBoard({
             )}
           </div>
         </div>
-      )}
 
-      {/* key theo khu: đổi khu là dựng lại bảng, nếu không thì danh sách đã tick
-          của khu trước còn nằm trong state và nút "Chuyển" sẽ dời nhầm những mã
-          không hề hiện trên màn hình. */}
-      {zoneId === "__unassigned__" ? (
-        <ZoneSkuPanel
-          key="unassigned"
-          title={`Chưa gán khu (${unassigned.length} mã hàng)`}
-          description="Chọn các mã rồi chuyển vào khu tương ứng."
-          skus={unassigned}
-          warehouses={warehouses}
-          stock={stock}
-        />
-      ) : selectedZone ? (
-        <ZoneSkuPanel
-          key={selectedZone.id}
-          title={`Khu ${selectedZone.code}${selectedZone.name ? ` — ${selectedZone.name}` : ""}`}
-          description={`${zoneSkus.length} mã hàng · ${cellCounts[selectedZone.id] ?? 0} ô trên sơ đồ`}
-          skus={zoneSkus}
-          warehouses={warehouses}
-          stock={stock}
-        />
-      ) : null}
+        <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:w-80 lg:shrink-0">
+          {/* key theo khu: đổi khu là dựng lại bảng, nếu không thì danh sách đã
+              tick của khu trước còn nằm trong state và nút "Chuyển" sẽ dời nhầm
+              những mã không hề hiện trên màn hình. */}
+          {zoneId === "__unassigned__" ? (
+            <ZoneSkuPanel
+              key="unassigned"
+              title={`Chưa gán khu (${unassigned.length} mã hàng)`}
+              description="Chọn các mã rồi chuyển vào khu tương ứng."
+              skus={unassigned}
+              warehouses={warehouses}
+              stock={stock}
+            />
+          ) : selectedZone ? (
+            <ZoneSkuPanel
+              key={selectedZone.id}
+              title={`Khu ${selectedZone.code}${selectedZone.name ? ` — ${selectedZone.name}` : ""}`}
+              description={`${zoneSkus.length} mã hàng · ${cellCounts[selectedZone.id] ?? 0} ô trên sơ đồ`}
+              skus={zoneSkus}
+              warehouses={warehouses}
+              stock={stock}
+            />
+          ) : (
+            <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Bấm một ô trên sơ đồ, hoặc một khu ở thanh bên dưới, để xem hàng
+              đang để ở đó.
+            </p>
+          )}
+        </div>
+        </div>
+      )}
 
       <ZoneManager
         warehouse={warehouse}
