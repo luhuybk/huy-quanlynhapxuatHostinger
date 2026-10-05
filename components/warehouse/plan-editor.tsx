@@ -20,7 +20,7 @@ import {
   type LayoutGrid,
 } from "@/lib/warehouse-layout";
 import { saveWarehousePlan } from "@/lib/actions/warehouse";
-import { PlanGrid } from "@/components/warehouse/plan-grid";
+import { AISLE_CLASS, PlanGrid } from "@/components/warehouse/plan-grid";
 import type { WarehouseLite } from "@/components/warehouse/types";
 
 // Chế độ vẽ: chọn bút (một khu / lối đi / ngoài kho) rồi quét lên lưới.
@@ -65,6 +65,7 @@ export function PlanEditor({
     });
   }
 
+  // Mỗi bút hiện đúng cái nó vẽ ra, để không phải đoán "Lối đi" trông thế nào.
   const brushes: { key: string; value: LayoutCell; label: string; className: string }[] = [
     ...warehouse.zones.map((z) => ({
       key: z.id,
@@ -72,8 +73,18 @@ export function PlanEditor({
       label: `Khu ${z.code}`,
       className: zoneColor(z.color).badge,
     })),
-    { key: "aisle", value: AISLE as LayoutCell, label: "Lối đi", className: "bg-background" },
-    { key: "outside", value: null, label: "Ngoài kho", className: "bg-muted text-muted-foreground" },
+    {
+      key: "aisle",
+      value: AISLE as LayoutCell,
+      label: "Lối đi",
+      className: AISLE_CLASS,
+    },
+    {
+      key: "outside",
+      value: null,
+      label: "Ngoài kho",
+      className: "border-dashed text-muted-foreground",
+    },
   ];
 
   return (
