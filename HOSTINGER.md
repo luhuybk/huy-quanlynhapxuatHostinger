@@ -49,6 +49,27 @@ AUTH_URL=https://your-domain.com
 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` chỉ cần generate **một lần** rồi giữ
 nguyên mãi mãi (không đổi mỗi lần deploy như `DEPLOYMENT_ID`).
 
+## Vì sao build bằng webpack chứ không phải Turbopack
+
+Next 16 mặc định build bằng Turbopack. Trên máy chủ build của Hostinger nó
+chết ở bước xử lý `app/globals.css`:
+
+```
+Error [TurbopackInternalError]: [project]/app/globals.css [app-client] (css)
+Caused by:
+- creating new process
+- node process exited before we could connect to it with exit status: 0
+```
+
+Turbopack chạy PostCSS (Tailwind v4) trong một tiến trình Node **con** rồi nối
+vào qua IPC. Container build của Hostinger bị giới hạn nên tiến trình con vừa
+sinh ra đã thoát, Turbopack không nối được → build hỏng. Không liên quan tới
+mã nguồn: build cùng commit đó ở máy vẫn chạy.
+
+Webpack chạy PostCSS ngay trong tiến trình chính nên không vướng. Vì vậy
+`npm run build` dùng `next build --webpack`. Khi nào chuyển sang môi trường
+build khoẻ hơn thì thử lại `npm run build:turbopack` — build nhanh hơn đáng kể.
+
 ## Đổi schema database
 
 `npm run build` **không** đụng tới database. Trước đây nó chạy kèm
