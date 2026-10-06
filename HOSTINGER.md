@@ -49,6 +49,25 @@ AUTH_URL=https://your-domain.com
 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` chỉ cần generate **một lần** rồi giữ
 nguyên mãi mãi (không đổi mỗi lần deploy như `DEPLOYMENT_ID`).
 
+## Đổi schema database
+
+`npm run build` **không** đụng tới database. Trước đây nó chạy kèm
+`prisma db push`, nhưng môi trường build của Hostinger là container riêng và
+thường không nối được vào MySQL — `db push` lỗi `P1001` là cả lệnh build dừng,
+`next build` không chạy, deploy thất bại mà nhìn log dễ tưởng lỗi Next.
+
+Khi nào schema đổi thì đồng bộ riêng, từ máy có quyền vào DB:
+
+```bash
+npm run db:push
+```
+
+Xem trước nó sẽ chạy câu lệnh SQL gì mà chưa áp dụng:
+
+```bash
+npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script
+```
+
 ## Build & chạy
 
 ```bash
@@ -57,7 +76,7 @@ npm run start:hostinger
 
 Script [scripts/hostinger-start.sh](scripts/hostinger-start.sh) sẽ:
 
-1. `npm run build` (chạy `prisma generate && prisma migrate deploy && next build`)
+1. `npm run build` (chạy `prisma generate && next build`)
 2. Copy `public/` và `.next/static/` vào `.next/standalone/` — bước bắt buộc
    vì `output: standalone` không tự copy 2 thư mục này.
 3. Chạy `node .next/standalone/server.js` (thay cho `next start`).

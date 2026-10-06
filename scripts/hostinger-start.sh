@@ -9,8 +9,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# 1. Build (runs `prisma generate && prisma migrate deploy && next build`,
-#    see package.json). Requires DATABASE_URL / DIRECT_URL to be set.
+# 1. Build (runs `prisma generate && next build`, see package.json).
+#    Cố ý KHÔNG đụng tới database ở bước này: môi trường build thường không
+#    nối được vào MySQL, mà `prisma db push` lỗi là cả lệnh build dừng luôn.
+#    Đổi schema thì chạy `npm run db:push` riêng, xem HOSTINGER.md.
 npm run build
 
 # 2. `output: standalone` does not copy public/ or .next/static — copy them
