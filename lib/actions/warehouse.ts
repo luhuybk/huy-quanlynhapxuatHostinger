@@ -7,6 +7,7 @@ import { nextSortOrder } from "@/lib/sort-order";
 import { ZONE_COLOR_KEYS, suggestZoneColor } from "@/lib/zone-colors";
 import {
   AISLE,
+  cellAt,
   clampSide,
   clearZoneFromGrid,
   emptyGrid,
@@ -111,7 +112,8 @@ export async function saveWarehousePlan(
 
   const cleaned: LayoutGrid = Array.from({ length: safeRows }, (_, r) =>
     Array.from({ length: safeCols }, (_, c) => {
-      const cell = grid[r]?.[c] ?? AISLE;
+      const raw = cellAt(grid, r, c);
+      const cell = raw === undefined ? AISLE : raw;
       if (cell === null) return null;
       if (cell === AISLE) return AISLE;
       return valid.has(cell) ? cell : AISLE;

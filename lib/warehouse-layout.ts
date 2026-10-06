@@ -48,10 +48,24 @@ export function serializeGrid(grid: LayoutGrid): string {
   return JSON.stringify(grid);
 }
 
+// Đọc một ô, phân biệt rõ "nằm ngoài lưới" với "ô ngoài tường".
+//
+// Đừng dùng `grid[r]?.[c] ?? AISLE`: null là giá trị *có nghĩa* (ô ngoài
+// tường), mà ?? lại coi null là không có giá trị nên biến mọi ô ngoài tường
+// thành lối đi. Trả về undefined chỉ khi thật sự ra ngoài lưới.
+export function cellAt(grid: LayoutGrid, r: number, c: number): LayoutCell | undefined {
+  const row = grid[r];
+  if (!row || c < 0 || c >= row.length) return undefined;
+  return row[c];
+}
+
 // Đổi kích thước lưới: giữ nguyên phần đã vẽ, phần mới thêm là lối đi.
 export function resizeGrid(grid: LayoutGrid, cols: number, rows: number): LayoutGrid {
   return Array.from({ length: rows }, (_, r) =>
-    Array.from({ length: cols }, (_, c) => grid[r]?.[c] ?? (AISLE as LayoutCell))
+    Array.from({ length: cols }, (_, c) => {
+      const cell = cellAt(grid, r, c);
+      return cell === undefined ? (AISLE as LayoutCell) : cell;
+    })
   );
 }
 
