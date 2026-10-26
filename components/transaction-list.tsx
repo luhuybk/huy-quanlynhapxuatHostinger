@@ -465,6 +465,31 @@ export function TransactionList({
       }
     : undefined;
 
+  // Nút của thanh "Đã chọn N phiếu", xếp theo đúng trình tự làm việc: phiếu
+  // nhập thì hàng vào kho → khớp số lượng → khớp công nợ → trả tiền.
+  const flagAction = (key: FlagKey) => ({
+    key,
+    label: FLAGS[type].find((f) => f.key === key)!.label,
+    allowed: canSetFlag(key, isAdmin),
+    run: () => setFlag([...selectedIds], key, true),
+  });
+  const itemAction = (key: ItemFlagKey) => ({
+    key,
+    label: ITEM_FLAGS.find((f) => f.key === key)!.label,
+    allowed: canSetItemFlag(key, isAdmin),
+    run: () => setItemFlag([...selectedIds], key, true),
+  });
+  const bulkActions = (
+    type === "IMPORT"
+      ? [
+          flagAction("receivedWarehouse"),
+          itemAction("matchedQuantity"),
+          itemAction("matchedDebt"),
+          flagAction("paidDebt"),
+        ]
+      : [flagAction("goodsShipped"), flagAction("paid"), flagAction("settled")]
+  ).filter((a) => a.allowed);
+
   return (
     <>
       <ListSummary
@@ -476,29 +501,11 @@ export function TransactionList({
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2">
           <span className="px-1 font-medium">Đã chọn {selectedIds.size} phiếu</span>
           <span className="text-muted-foreground">→ đánh dấu:</span>
-          {FLAGS[type]
-            .filter((f) => canSetFlag(f.key, isAdmin))
-            .map((f) => (
-              <Button
-                key={f.key}
-                size="sm"
-                variant="outline"
-                onClick={() => setFlag([...selectedIds], f.key, true)}
-              >
-                <Check className="h-4 w-4" /> {f.label}
-              </Button>
-            ))}
-          {type === "IMPORT" &&
-            ITEM_FLAGS.filter((f) => canSetItemFlag(f.key, isAdmin)).map((f) => (
-              <Button
-                key={f.key}
-                size="sm"
-                variant="outline"
-                onClick={() => setItemFlag([...selectedIds], f.key, true)}
-              >
-                <Check className="h-4 w-4" /> {f.label}
-              </Button>
-            ))}
+          {bulkActions.map((a) => (
+            <Button key={a.key} size="sm" variant="outline" onClick={a.run}>
+              <Check className="h-4 w-4" /> {a.label}
+            </Button>
+          ))}
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
             Bỏ chọn
           </Button>
@@ -532,12 +539,12 @@ export function TransactionList({
               <TableHead className="hidden sm:table-cell">Số SKU</TableHead>
               {type === "IMPORT" ? (
                 <>
-                  <TableHead className="hidden sm:table-cell">Khớp SL</TableHead>
-                  <TableHead className="hidden sm:table-cell">Khớp công nợ</TableHead>
                   <TableHead>
                     <span className="sm:hidden">Kho</span>
                     <span className="hidden sm:inline">Nhập kho</span>
                   </TableHead>
+                  <TableHead className="hidden sm:table-cell">Khớp SL</TableHead>
+                  <TableHead className="hidden sm:table-cell">Khớp công nợ</TableHead>
                   <TableHead>
                     <span className="sm:hidden">CN</span>
                     <span className="hidden sm:inline">Đã TT CN</span>
@@ -607,6 +614,17 @@ export function TransactionList({
                 <TableCell className="hidden sm:table-cell">{t.items.length}</TableCell>
                 {type === "IMPORT" ? (
                   <>
+                    <TableCell>
+                      <StatusBadge
+                        done={t.receivedWarehouse}
+                        doneLabel="Đã nhập"
+                        onToggle={
+                          canSetFlag("receivedWarehouse", isAdmin)
+                            ? () => setFlag([t.id], "receivedWarehouse", !t.receivedWarehouse)
+                            : undefined
+                        }
+                      />
+                    </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <MatchSummary
                         items={t.items}
@@ -635,17 +653,6 @@ export function TransactionList({
                                   "matchedDebt",
                                   !t.items.every((it) => it.matchedDebt)
                                 )
-                            : undefined
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        done={t.receivedWarehouse}
-                        doneLabel="Đã nhập"
-                        onToggle={
-                          canSetFlag("receivedWarehouse", isAdmin)
-                            ? () => setFlag([t.id], "receivedWarehouse", !t.receivedWarehouse)
                             : undefined
                         }
                       />
