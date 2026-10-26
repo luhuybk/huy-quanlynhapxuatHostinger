@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Check, X, Copy } from "lucide-react";
+import { Plus, Pencil, Check, X, Copy, Eye, EyeOff } from "lucide-react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import {
   createChinaOrderItem,
@@ -66,6 +66,11 @@ export function ChinaOrderList({
 
   const [copyOpen, setCopyOpen] = useState(false);
   const pending = items.filter((it) => !it.ordered);
+
+  // Mục đã về chỉ còn giá trị tra lại, nên ẩn mặc định cho danh sách gọn.
+  const [showArrived, setShowArrived] = useState(false);
+  const arrivedCount = items.filter((it) => it.arrived).length;
+  const visible = showArrived ? items : items.filter((it) => !it.arrived);
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -146,6 +151,7 @@ export function ChinaOrderList({
     startTransition(async () => {
       try {
         await toggleChinaOrderItemArrived(id, arrived);
+        if (arrived && !showArrived) toast.success("Đã về — mục này được ẩn khỏi danh sách");
         router.refresh();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
@@ -201,7 +207,13 @@ export function ChinaOrderList({
         </Button>
       </form>
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {arrivedCount > 0 && (
+          <Button variant="ghost" onClick={() => setShowArrived((v) => !v)}>
+            {showArrived ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showArrived ? "Ẩn" : "Hiện"} {arrivedCount} mục đã về
+          </Button>
+        )}
         <Button
           variant="outline"
           disabled={pending.length === 0}
@@ -235,7 +247,7 @@ export function ChinaOrderList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((it) =>
+            {visible.map((it) =>
               editingId === it.id ? (
                 <TableRow key={it.id}>
                   <TableCell />
@@ -330,10 +342,11 @@ export function ChinaOrderList({
                 </TableRow>
               )
             )}
-            {items.length === 0 && (
+            {visible.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-muted-foreground">
                   Không có hàng cần order
+                  {arrivedCount > 0 && ` · ${arrivedCount} mục đã về đang ẩn`}
                 </TableCell>
               </TableRow>
             )}
@@ -351,7 +364,6 @@ export function ChinaOrderList({
         build={({ includeNotes }) =>
           buildOrderText({
             title: "Đặt hàng",
-            date: new Date(),
             items: pending.map((it) => ({ ...it, skuId: null })),
             includeNotes,
           })

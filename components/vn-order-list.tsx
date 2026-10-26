@@ -368,8 +368,6 @@ export function VnOrderList({
             const scope = copyScope(merge);
             return buildOrderText({
               title: `Đặt hàng ${copying.brand.name}`,
-              // Gộp nhiều đợt thì ghi ngày gửi; một đợt thì ghi ngày của đợt đó.
-              date: merge ? new Date() : copying.date,
               items: mergeOrderItems(scope.flatMap((o) => o.items)),
               notes: scope.map((o) => o.note),
               includeNotes,
