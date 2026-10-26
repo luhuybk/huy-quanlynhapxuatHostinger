@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Check, X } from "lucide-react";
+import { Plus, Pencil, Check, X, Copy } from "lucide-react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import {
   createChinaOrderItem,
@@ -22,7 +22,10 @@ import {
   toggleChinaOrderItem,
   toggleChinaOrderItemArrived,
   deleteChinaOrderItem,
+  markChinaOrderItemsOrdered,
 } from "@/lib/actions/china-order-items";
+import { CopyOrderDialog } from "@/components/copy-order-dialog";
+import { buildOrderText } from "@/lib/order-text";
 
 type Role = "ADMIN" | "SHARED" | "STAFF";
 
@@ -60,6 +63,9 @@ export function ChinaOrderList({
   const [editName, setEditName] = useState("");
   const [editQty, setEditQty] = useState(1);
   const [editNote, setEditNote] = useState("");
+
+  const [copyOpen, setCopyOpen] = useState(false);
+  const pending = items.filter((it) => !it.ordered);
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -195,6 +201,16 @@ export function ChinaOrderList({
         </Button>
       </form>
 
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          disabled={pending.length === 0}
+          onClick={() => setCopyOpen(true)}
+        >
+          <Copy className="h-4 w-4" /> Copy hàng chưa đặt ({pending.length})
+        </Button>
+      </div>
+
       <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <Table
           className="sm:min-w-[640px]"
@@ -324,6 +340,28 @@ export function ChinaOrderList({
           </TableBody>
         </Table>
       </div>
+
+      <CopyOrderDialog
+        open={copyOpen}
+        onOpenChange={setCopyOpen}
+        title="Copy hàng Trung chưa đặt"
+        // Ghi chú bên này thường là ghi chú nội bộ ("đã báo đặt 30/5"), nên
+        // mặc định không gửi kèm.
+        defaultIncludeNotes={false}
+        build={({ includeNotes }) =>
+          buildOrderText({
+            title: "Đặt hàng",
+            date: new Date(),
+            items: pending.map((it) => ({ ...it, skuId: null })),
+            includeNotes,
+          })
+        }
+        markCount={() => pending.length}
+        onMarkOrdered={async () => {
+          await markChinaOrderItemsOrdered(pending.map((it) => it.id));
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

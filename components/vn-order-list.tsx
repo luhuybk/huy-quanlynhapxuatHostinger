@@ -20,10 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil } from "lucide-react";
+import { Copy, Pencil } from "lucide-react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ListSummary } from "@/components/list-summary";
-import { updateVnOrderFlags, deleteVnOrder } from "@/lib/actions/vn-orders";
+import {
+  updateVnOrderFlags,
+  deleteVnOrder,
+  markVnOrdersOrdered,
+} from "@/lib/actions/vn-orders";
+import { CopyOrderDialog } from "@/components/copy-order-dialog";
+import { buildOrderText, mergeOrderItems } from "@/lib/order-text";
 import { VnOrderForm, type EditableVnOrder } from "@/components/vn-order-form";
 import type { SkuOption } from "@/components/sku-picker";
 
@@ -70,6 +76,18 @@ export function VnOrderList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const detail = orders.find((o) => o.id === detailId) ?? null;
   const editing = orders.find((o) => o.id === editingId) ?? null;
+  const [copyId, setCopyId] = useState<string | null>(null);
+  const copying = orders.find((o) => o.id === copyId) ?? null;
+  // Các đợt chưa đặt khác cùng brand: gửi hãng một lần cho gọn thay vì từng đợt.
+  const copyOthers = copying
+    ? orders
+        .filter((o) => o.brand.id === copying.brand.id && !o.ordered && o.id !== copying.id)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    : [];
+  const copyScope = (merge: boolean) =>
+    copying ? (merge ? [copying, ...copyOthers] : [copying]) : [];
+  const unorderedIds = (merge: boolean) =>
+    copyScope(merge).filter((o) => !o.ordered).map((o) => o.id);
 
   function toggleFlag(id: string, key: "ordered" | "arrived", currentValue: boolean) {
     startTransition(async () => {
@@ -146,7 +164,7 @@ export function VnOrderList({
               <TableHead>Đã đặt</TableHead>
               <TableHead>Đã về</TableHead>
               <TableHead className="hidden sm:table-cell">Người tạo</TableHead>
-              {isAdmin && <TableHead className="hidden w-20 sm:table-cell" />}
+              <TableHead className={isAdmin ? "hidden w-28 sm:table-cell" : "hidden w-12 sm:table-cell"} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -175,25 +193,35 @@ export function VnOrderList({
                 <TableCell className="hidden text-muted-foreground sm:table-cell">
                   {o.createdBy.name}
                 </TableCell>
-                {isAdmin && (
-                  <TableCell className="hidden gap-1 sm:flex" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => setEditingId(o.id)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <ConfirmDeleteButton
-                      disabled={isPending}
-                      title="Xoá đợt order này?"
-                      description={`Đợt ${o.brand.name} ngày ${formatDate(o.date)} sẽ bị xoá vĩnh viễn.`}
-                      onConfirm={() => handleDelete(o.id)}
-                    />
-                  </TableCell>
-                )}
+                <TableCell className="hidden gap-1 sm:flex" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Copy danh sách gửi hãng"
+                    onClick={() => setCopyId(o.id)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  {isAdmin && (
+                    <>
+                      <Button variant="ghost" size="icon" onClick={() => setEditingId(o.id)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <ConfirmDeleteButton
+                        disabled={isPending}
+                        title="Xoá đợt order này?"
+                        description={`Đợt ${o.brand.name} ngày ${formatDate(o.date)} sẽ bị xoá vĩnh viễn.`}
+                        onConfirm={() => handleDelete(o.id)}
+                      />
+                    </>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
             {orders.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={isAdmin ? 8 : 7}
+                  colSpan={8}
                   className="text-center text-muted-foreground"
                 >
                   Chưa có đợt order nào
@@ -286,34 +314,74 @@ export function VnOrderList({
               {detail.note && (
                 <p className="text-muted-foreground">Ghi chú: {detail.note}</p>
               )}
-              {isAdmin && (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    className="w-fit"
-                    onClick={() => {
-                      setEditingId(detail.id);
-                      setDetailId(null);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" /> Sửa đợt order
-                  </Button>
-                  <ConfirmDeleteButton
-                    disabled={isPending}
-                    label="Xoá đợt order"
-                    title="Xoá đợt order này?"
-                    description={`Đợt ${detail.brand.name} ngày ${formatDate(detail.date)} sẽ bị xoá vĩnh viễn.`}
-                    onConfirm={() => {
-                      setDetailId(null);
-                      handleDelete(detail.id);
-                    }}
-                  />
-                </div>
-              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  className="w-fit"
+                  onClick={() => {
+                    setCopyId(detail.id);
+                    setDetailId(null);
+                  }}
+                >
+                  <Copy className="h-4 w-4" /> Copy danh sách gửi hãng
+                </Button>
+                {isAdmin && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-fit"
+                      onClick={() => {
+                        setEditingId(detail.id);
+                        setDetailId(null);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" /> Sửa đợt order
+                    </Button>
+                    <ConfirmDeleteButton
+                      disabled={isPending}
+                      label="Xoá đợt order"
+                      title="Xoá đợt order này?"
+                      description={`Đợt ${detail.brand.name} ngày ${formatDate(detail.date)} sẽ bị xoá vĩnh viễn.`}
+                      onConfirm={() => {
+                        setDetailId(null);
+                        handleDelete(detail.id);
+                      }}
+                    />
+                  </>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {copying && (
+        <CopyOrderDialog
+          open
+          onOpenChange={(o) => !o && setCopyId(null)}
+          title={`Copy đợt order ${copying.brand.name}`}
+          mergeLabel={
+            copyOthers.length > 0
+              ? `Gộp thêm ${copyOthers.length} đợt chưa đặt khác của ${copying.brand.name}`
+              : undefined
+          }
+          build={({ includeNotes, merge }) => {
+            const scope = copyScope(merge);
+            return buildOrderText({
+              title: `Đặt hàng ${copying.brand.name}`,
+              // Gộp nhiều đợt thì ghi ngày gửi; một đợt thì ghi ngày của đợt đó.
+              date: merge ? new Date() : copying.date,
+              items: mergeOrderItems(scope.flatMap((o) => o.items)),
+              notes: scope.map((o) => o.note),
+              includeNotes,
+            });
+          }}
+          markCount={(merge) => unorderedIds(merge).length}
+          onMarkOrdered={async (merge) => {
+            await markVnOrdersOrdered(unorderedIds(merge));
+            router.refresh();
+          }}
+        />
+      )}
 
       {editableOrder && (
         <VnOrderForm

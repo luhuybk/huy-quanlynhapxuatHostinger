@@ -80,3 +80,15 @@ export async function deleteChinaOrderItem(id: string) {
   await prisma.chinaOrderItem.delete({ where: { id } });
   revalidatePath("/hang-can-order");
 }
+
+// Đánh dấu "đã đặt" cho nhiều mục một lúc, dùng sau khi copy danh sách gửi hãng.
+export async function markChinaOrderItemsOrdered(ids: string[]) {
+  await requireSession();
+  if (ids.length === 0) return;
+
+  await prisma.chinaOrderItem.updateMany({
+    where: { id: { in: ids } },
+    data: { ordered: true },
+  });
+  revalidatePath("/hang-can-order");
+}

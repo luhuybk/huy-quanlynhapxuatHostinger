@@ -131,3 +131,15 @@ export async function deleteVnOrder(id: string) {
   await prisma.vnOrder.delete({ where: { id } });
   revalidatePath("/hang-can-order");
 }
+
+// Đánh dấu "đã đặt" cho nhiều đợt một lúc, dùng sau khi copy danh sách gửi hãng.
+export async function markVnOrdersOrdered(ids: string[]) {
+  await requireSession();
+  if (ids.length === 0) return;
+
+  await prisma.vnOrder.updateMany({
+    where: { id: { in: ids } },
+    data: { ordered: true },
+  });
+  revalidatePath("/hang-can-order");
+}
