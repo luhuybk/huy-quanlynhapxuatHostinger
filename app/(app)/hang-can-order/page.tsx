@@ -18,7 +18,7 @@ import {
 export default async function OrderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ brandId?: string; status?: string }>;
+  searchParams: Promise<{ brandId?: string; status?: string; tab?: string }>;
 }) {
   const filters = await searchParams;
   const session = await auth();
@@ -53,7 +53,8 @@ export default async function OrderPage({
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Hàng cần order</h1>
 
-      <Tabs defaultValue="vn">
+      {/* ?tab=china để trang Tổng quan mở thẳng tab hàng Trung. */}
+      <Tabs defaultValue={filters.tab === "china" ? "china" : "vn"}>
         <TabsList>
           <TabsTrigger value="vn">Hàng Việt Nam</TabsTrigger>
           <TabsTrigger value="china">Hàng Trung</TabsTrigger>

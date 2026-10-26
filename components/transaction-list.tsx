@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useOptimistic, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ import { ListSummary, type SummaryStat } from "@/components/list-summary";
 import { SortHeader } from "@/components/sort-header";
 import {
   updateItemFlags,
-  updateTransactionFlags,
+  updateTransactionsFlags,
   deleteTransaction,
 } from "@/lib/actions/transactions";
 import { TransactionForm, type EditableTransaction } from "@/components/transaction-form";
@@ -110,20 +110,23 @@ function StatusBadge({
   done,
   doneLabel,
   pendingLabel = "Chưa",
+  onToggle,
 }: {
   done: boolean;
   doneLabel: string;
   pendingLabel?: string;
+  // Có thì bấm thẳng vào nhãn để tick/bỏ tick, khỏi mở chi tiết phiếu.
+  onToggle?: () => void;
 }) {
   // Chỉ tô xanh khi đã xong; việc chưa xong để trung tính, nhìn cả bảng sẽ
   // thấy ngay dòng nào "thiếu màu xanh" thay vì cả cột rực lên một màu.
   // Trên điện thoại thu lại còn dấu tích / gạch ngang cho vừa màn hình —
   // tiêu đề cột vẫn cho biết đang nói về việc gì.
-  return (
+  const badge = (
     <Badge
       variant={done ? "success" : "outline"}
       title={done ? doneLabel : pendingLabel}
-      className="px-1.5 sm:px-2.5"
+      className={cn("px-1.5 sm:px-2.5", onToggle && "cursor-pointer hover:border-foreground/40")}
     >
       <span className="sm:hidden">
         {done ? <Check className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
@@ -131,6 +134,42 @@ function StatusBadge({
       <span className="hidden sm:inline">{done ? doneLabel : pendingLabel}</span>
     </Badge>
   );
+  if (!onToggle) return badge;
+  return (
+    <button
+      type="button"
+      // Vùng bấm rộng hơn cái nhãn cho dễ trúng trên điện thoại.
+      className="-m-2 p-2"
+      aria-label={done ? `Bỏ đánh dấu ${doneLabel}` : `Đánh dấu ${doneLabel}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+    >
+      {badge}
+    </button>
+  );
+}
+
+type FlagKey = "paidDebt" | "receivedWarehouse" | "goodsShipped" | "paid" | "settled";
+
+// Các cờ của từng loại phiếu, theo đúng thứ tự cột trong bảng.
+const FLAGS: Record<"IMPORT" | "EXPORT", { key: FlagKey; label: string; doneLabel: string }[]> = {
+  IMPORT: [
+    { key: "receivedWarehouse", label: "Nhập kho", doneLabel: "Đã nhập" },
+    { key: "paidDebt", label: "Đã TT công nợ", doneLabel: "Đã TT" },
+  ],
+  EXPORT: [
+    { key: "goodsShipped", label: "Đã xuất", doneLabel: "Đã xuất" },
+    { key: "paid", label: "Đã thanh toán", doneLabel: "Đã TT" },
+    { key: "settled", label: "Tất toán", doneLabel: "Tất toán" },
+  ],
+};
+
+// Tài khoản không phải admin chỉ tick được việc kho (nhập kho / đã xuất), còn
+// các cột tiền giữ cho admin — giống quy định trong bảng chi tiết phiếu.
+function canSetFlag(key: FlagKey, isAdmin: boolean) {
+  return isAdmin || key === "receivedWarehouse" || key === "goodsShipped";
 }
 
 // Số phiếu còn dang dở của danh sách đang xem. Các key lọc khớp với
@@ -194,15 +233,58 @@ export function TransactionList({
   skus: SkuOption[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isAdmin = role === "ADMIN";
   const [isPending, startTransition] = useTransition();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Tick hiện ra ngay, không chờ server trả lời; xong transition thì danh
+  // sách đã được làm mới nên bỏ lớp tạm này đi.
+  const [optimistic, applyOptimistic] = useOptimistic(
+    transactions,
+    (rows, change: { ids: string[]; key: FlagKey; value: boolean }) =>
+      rows.map((t) => (change.ids.includes(t.id) ? { ...t, [change.key]: change.value } : t))
+  );
+  const rows = optimistic;
+
+  // Lựa chọn gắn với bộ lọc đang xem: đổi bộ lọc là bỏ chọn hết, khỏi lỡ tay
+  // đánh dấu cả những phiếu đã khuất khỏi màn hình.
+  const filterKey = searchParams.toString();
+  const [selection, setSelection] = useState({ filterKey, ids: new Set<string>() });
+  const selectedIds = new Set(
+    selection.filterKey === filterKey
+      ? rows.filter((t) => selection.ids.has(t.id)).map((t) => t.id)
+      : []
+  );
+  const allSelected = rows.length > 0 && selectedIds.size === rows.length;
+
+  function setSelected(ids: Set<string>) {
+    setSelection({ filterKey, ids });
+  }
+
+  function toggleSelected(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelected(next);
+  }
+
+  const activePartnerId = searchParams.get("partnerId");
+
+  // Bấm tên đối tác/đại lý trong bảng để chỉ xem phiếu của họ; bấm lần nữa để bỏ lọc.
+  function filterByPartner(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (activePartnerId === id) params.delete("partnerId");
+    else params.set("partnerId", id);
+    router.push(`${pathname}?${params.toString()}`);
+  }
   // Xếp các món theo khu để đi một vòng kho là lấy/cất đủ, khỏi chạy qua lại.
   const [sortByZone, setSortByZone] = useState(false);
   // Derived from the (possibly refreshed) transactions prop so toggling a
   // checkbox in the dialog reflects the latest state without closing it.
-  const detail = transactions.find((t) => t.id === detailId) ?? null;
+  const detail = rows.find((t) => t.id === detailId) ?? null;
   const editing = transactions.find((t) => t.id === editingId) ?? null;
 
   const detailItems = useMemo(() => {
@@ -230,19 +312,40 @@ export function TransactionList({
     });
   }
 
-  function toggleHeaderFlag(
-    id: string,
-    key: "paidDebt" | "receivedWarehouse" | "goodsShipped" | "paid" | "settled",
-    currentValue: boolean
-  ) {
+  // Đặt một cờ cho một hay nhiều phiếu. Chỉ gửi những phiếu thật sự đổi, để
+  // "Hoàn tác" trả đúng những phiếu đó về như cũ.
+  function setFlag(ids: string[], key: FlagKey, value: boolean) {
+    const changed = rows.filter((t) => ids.includes(t.id) && t[key] !== value).map((t) => t.id);
+    if (changed.length === 0) {
+      const flag = FLAGS[type].find((f) => f.key === key)!;
+      toast(`Các phiếu đã chọn đều ${value ? "đã" : "chưa"} "${flag.label}" rồi`);
+      return;
+    }
+    commitFlag(changed, key, value, true);
+  }
+
+  // Không đọc `rows` ở đây: hàm này còn được gọi lại từ nút "Hoàn tác" của
+  // toast, lúc đó `rows` trong closure đã cũ.
+  function commitFlag(ids: string[], key: FlagKey, value: boolean, undoable: boolean) {
+    const flag = FLAGS[type].find((f) => f.key === key)!;
     startTransition(async () => {
+      applyOptimistic({ ids, key, value });
       try {
-        await updateTransactionFlags(id, type, { [key]: !currentValue });
+        await updateTransactionsFlags(ids, type, { [key]: value });
         router.refresh();
+        if (!undoable) return;
+        const who = ids.length === 1 ? "1 phiếu" : `${ids.length} phiếu`;
+        toast.success(`${value ? "Đã đánh dấu" : "Đã bỏ"} "${flag.label}" cho ${who}`, {
+          action: { label: "Hoàn tác", onClick: () => commitFlag(ids, key, !value, false) },
+        });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Không thể cập nhật");
       }
     });
+  }
+
+  function toggleHeaderFlag(id: string, key: FlagKey, currentValue: boolean) {
+    commitFlag([id], key, !currentValue, false);
   }
 
   function handleDelete(id: string) {
@@ -292,13 +395,44 @@ export function TransactionList({
         totalLabel="phiếu"
         stats={pendingStats(type, transactions)}
       />
+      {selectedIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2">
+          <span className="px-1 font-medium">Đã chọn {selectedIds.size} phiếu</span>
+          <span className="text-muted-foreground">→ đánh dấu:</span>
+          {FLAGS[type]
+            .filter((f) => canSetFlag(f.key, isAdmin))
+            .map((f) => (
+              <Button
+                key={f.key}
+                size="sm"
+                variant="outline"
+                onClick={() => setFlag([...selectedIds], f.key, true)}
+              >
+                <Check className="h-4 w-4" /> {f.label}
+              </Button>
+            ))}
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+            Bỏ chọn
+          </Button>
+        </div>
+      )}
       <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <Table
-          className="sm:min-w-[720px]"
+          // Thêm cột chọn phiếu nên trên điện thoại ép đệm ô lại cho vừa màn hình.
+          className="sm:min-w-[720px] [&_td]:px-1.5 [&_th]:px-1.5 sm:[&_td]:px-3 sm:[&_th]:px-3"
           containerClassName="max-h-[calc(100vh-22rem)]"
         >
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8 pr-0">
+                <Checkbox
+                  aria-label="Chọn tất cả phiếu đang hiện"
+                  checked={allSelected ? true : selectedIds.size > 0 ? "indeterminate" : false}
+                  onCheckedChange={() =>
+                    setSelected(allSelected ? new Set() : new Set(rows.map((t) => t.id)))
+                  }
+                />
+              </TableHead>
               <TableHead>
                 <SortHeader field="date">Ngày</SortHeader>
               </TableHead>
@@ -341,20 +475,46 @@ export function TransactionList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((t) => (
+            {rows.map((t) => (
               <TableRow
                 key={t.id}
                 className="cursor-pointer"
+                data-state={selectedIds.has(t.id) ? "selected" : undefined}
                 onClick={() => setDetailId(t.id)}
               >
+                <TableCell className="w-8 pr-0" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    aria-label={`Chọn phiếu ${t.code}`}
+                    checked={selectedIds.has(t.id)}
+                    onCheckedChange={() => toggleSelected(t.id)}
+                  />
+                </TableCell>
                 <TableCell>
                   <span className="sm:hidden">{formatDateShort(t.date)}</span>
                   <span className="hidden sm:inline">{formatDate(t.date)}</span>
                 </TableCell>
                 <TableCell>
-                  <span className="block max-w-[6.5rem] truncate sm:max-w-none">
-                    {partnerName(t)}
-                  </span>
+                  {(() => {
+                    const partner = t.supplier ?? t.agent;
+                    if (!partner) return null;
+                    const active = activePartnerId === partner.id;
+                    return (
+                      <button
+                        type="button"
+                        title={active ? "Bỏ lọc" : `Chỉ xem phiếu của ${partner.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          filterByPartner(partner.id);
+                        }}
+                        className={cn(
+                          "block max-w-[6.5rem] cursor-pointer truncate text-left underline-offset-4 hover:underline sm:max-w-none",
+                          active && "font-semibold underline"
+                        )}
+                      >
+                        {partner.name}
+                      </button>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">{t.items.length}</TableCell>
                 {type === "IMPORT" ? (
@@ -366,22 +526,62 @@ export function TransactionList({
                       <MatchSummary items={t.items} field="matchedDebt" />
                     </TableCell>
                     <TableCell>
-                      <StatusBadge done={t.receivedWarehouse} doneLabel="Đã nhập" />
+                      <StatusBadge
+                        done={t.receivedWarehouse}
+                        doneLabel="Đã nhập"
+                        onToggle={
+                          canSetFlag("receivedWarehouse", isAdmin)
+                            ? () => setFlag([t.id], "receivedWarehouse", !t.receivedWarehouse)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell>
-                      <StatusBadge done={t.paidDebt} doneLabel="Đã TT" />
+                      <StatusBadge
+                        done={t.paidDebt}
+                        doneLabel="Đã TT"
+                        onToggle={
+                          canSetFlag("paidDebt", isAdmin)
+                            ? () => setFlag([t.id], "paidDebt", !t.paidDebt)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                   </>
                 ) : (
                   <>
                     <TableCell>
-                      <StatusBadge done={t.goodsShipped} doneLabel="Đã xuất" />
+                      <StatusBadge
+                        done={t.goodsShipped}
+                        doneLabel="Đã xuất"
+                        onToggle={
+                          canSetFlag("goodsShipped", isAdmin)
+                            ? () => setFlag([t.id], "goodsShipped", !t.goodsShipped)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell>
-                      <StatusBadge done={t.paid} doneLabel="Đã TT" />
+                      <StatusBadge
+                        done={t.paid}
+                        doneLabel="Đã TT"
+                        onToggle={
+                          canSetFlag("paid", isAdmin)
+                            ? () => setFlag([t.id], "paid", !t.paid)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell>
-                      <StatusBadge done={t.settled} doneLabel="Tất toán" />
+                      <StatusBadge
+                        done={t.settled}
+                        doneLabel="Tất toán"
+                        onToggle={
+                          canSetFlag("settled", isAdmin)
+                            ? () => setFlag([t.id], "settled", !t.settled)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                   </>
                 )}
@@ -409,7 +609,7 @@ export function TransactionList({
             {transactions.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={(type === "IMPORT" ? 7 : 6) + (isAdmin ? 1 : 0)}
+                  colSpan={(type === "IMPORT" ? 8 : 7) + (isAdmin ? 1 : 0)}
                   className="text-center text-muted-foreground"
                 >
                   Không có phiếu nào

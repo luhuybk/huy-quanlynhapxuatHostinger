@@ -3,10 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { PackagePlus, PackageMinus, ClipboardList, LayoutGrid, Settings } from "lucide-react";
+import {
+  PackagePlus,
+  PackageMinus,
+  ClipboardList,
+  LayoutDashboard,
+  LayoutGrid,
+  Settings,
+} from "lucide-react";
 
-// Xếp theo đúng luồng hàng: cần order → về kho → xuất đi.
+// Tổng quan đứng đầu, sau đó xếp theo đúng luồng hàng: cần order → về kho → xuất đi.
 const links = [
+  { href: "/tong-quan", label: "Tổng quan", shortLabel: "Tổng quan", icon: LayoutDashboard },
   { href: "/hang-can-order", label: "Hàng cần order", shortLabel: "Cần order", icon: ClipboardList },
   { href: "/hang-ve-kho", label: "Hàng về kho", shortLabel: "Về kho", icon: PackagePlus },
   { href: "/xuat-hang", label: "Xuất hàng", shortLabel: "Xuất hàng", icon: PackageMinus },

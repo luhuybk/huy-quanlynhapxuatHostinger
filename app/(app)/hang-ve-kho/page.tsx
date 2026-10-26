@@ -21,6 +21,7 @@ export default async function WarehousePage({
   searchParams,
 }: {
   searchParams: Promise<{
+    tab?: string;
     from?: string;
     to?: string;
     partnerId?: string;
@@ -67,7 +68,8 @@ export default async function WarehousePage({
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Hàng về kho</h1>
 
-      <Tabs defaultValue="vn">
+      {/* ?tab=china để trang Tổng quan mở thẳng tab hàng Trung. */}
+      <Tabs defaultValue={filters.tab === "china" ? "china" : "vn"}>
         <TabsList>
           <TabsTrigger value="vn">Hàng Việt Nam</TabsTrigger>
           <TabsTrigger value="china">Hàng Trung</TabsTrigger>

@@ -258,31 +258,52 @@ export async function updateItemFlags(
 export async function updateTransactionFlags(
   id: string,
   type: "IMPORT" | "EXPORT",
-  data: {
-    paidDebt?: boolean;
-    receivedWarehouse?: boolean;
-    goodsShipped?: boolean;
-    paid?: boolean;
-    settled?: boolean;
-  }
+  data: TransactionFlags
 ) {
   const session = await requireSession();
-
-  if (session.user.role === "SHARED") {
-    const keys = Object.keys(data);
-    const allowedKey = type === "EXPORT" ? "goodsShipped" : "receivedWarehouse";
-    const onlyAllowedKey = keys.every((k) => k === allowedKey);
-    if (!onlyAllowedKey) {
-      throw new Error(
-        type === "EXPORT"
-          ? "Tài khoản chung chỉ được phép tick 'Đã xuất hàng' bên xuất kho"
-          : "Tài khoản chung chỉ được phép tick 'Nhập kho' bên nhập kho"
-      );
-    }
-  }
+  assertCanSetFlags(session, type, data);
 
   await prisma.transaction.update({ where: { id }, data });
   revalidatePath(pathByType[type]);
+}
+
+// Đánh dấu cùng lúc nhiều phiếu (chọn nhiều dòng trong danh sách). Cùng luật
+// quyền như tick từng phiếu.
+export async function updateTransactionsFlags(
+  ids: string[],
+  type: "IMPORT" | "EXPORT",
+  data: TransactionFlags
+) {
+  const session = await requireSession();
+  assertCanSetFlags(session, type, data);
+  if (ids.length === 0) return;
+
+  await prisma.transaction.updateMany({ where: { id: { in: ids }, type }, data });
+  revalidatePath(pathByType[type]);
+}
+
+type TransactionFlags = {
+  paidDebt?: boolean;
+  receivedWarehouse?: boolean;
+  goodsShipped?: boolean;
+  paid?: boolean;
+  settled?: boolean;
+};
+
+function assertCanSetFlags(
+  session: { user: { role: "ADMIN" | "SHARED" | "STAFF" } },
+  type: "IMPORT" | "EXPORT",
+  data: TransactionFlags
+) {
+  if (session.user.role !== "SHARED") return;
+  const allowedKey = type === "EXPORT" ? "goodsShipped" : "receivedWarehouse";
+  if (!Object.keys(data).every((k) => k === allowedKey)) {
+    throw new Error(
+      type === "EXPORT"
+        ? "Tài khoản chung chỉ được phép tick 'Đã xuất hàng' bên xuất kho"
+        : "Tài khoản chung chỉ được phép tick 'Nhập kho' bên nhập kho"
+    );
+  }
 }
 
 export async function deleteTransaction(id: string) {

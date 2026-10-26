@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
-type Viewer = { id: string; role: "ADMIN" | "SHARED" | "STAFF" };
+export type Viewer = { id: string; role: "ADMIN" | "SHARED" | "STAFF" };
 export type TransactionFilters = {
   from?: string;
   to?: string;
@@ -48,7 +48,7 @@ function boolFilter(value?: string): boolean | undefined {
   return undefined;
 }
 
-function buildTransactionWhere(
+export function buildTransactionWhere(
   type: "IMPORT" | "EXPORT",
   filters: TransactionFilters,
   // STAFF only sees EXPORT transactions for agents they own or shared (chung)
