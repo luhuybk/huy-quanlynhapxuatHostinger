@@ -30,6 +30,7 @@ import { SortHeader } from "@/components/sort-header";
 import {
   updateItemFlags,
   updateTransactionsFlags,
+  updateItemsFlags,
   deleteTransaction,
 } from "@/lib/actions/transactions";
 import { TransactionForm, type EditableTransaction } from "@/components/transaction-form";
@@ -92,18 +93,50 @@ function partnerName(t: TransactionListItem) {
 function MatchSummary({
   items,
   field,
+  onToggle,
 }: {
   items: TransactionListItem["items"];
-  field: "matchedQuantity" | "matchedDebt";
+  field: ItemFlagKey;
+  // Có thì bấm vào để khớp hết các món của phiếu (hoặc bỏ hết nếu đã khớp đủ).
+  onToggle?: () => void;
 }) {
   const matched = items.filter((i) => i[field]).length;
   const total = items.length;
   const allMatched = matched === total;
-  return (
-    <Badge variant={allMatched ? "success" : "outline"}>
+  const badge = (
+    <Badge
+      variant={allMatched ? "success" : "outline"}
+      className={cn(onToggle && "cursor-pointer hover:border-foreground/40")}
+    >
       {matched}/{total}
     </Badge>
   );
+  if (!onToggle || total === 0) return badge;
+  return (
+    <button
+      type="button"
+      className="-m-2 p-2"
+      title={allMatched ? "Bỏ khớp tất cả món" : "Khớp tất cả món của phiếu"}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+    >
+      {badge}
+    </button>
+  );
+}
+
+type ItemFlagKey = "matchedQuantity" | "matchedDebt";
+
+const ITEM_FLAGS: { key: ItemFlagKey; label: string }[] = [
+  { key: "matchedQuantity", label: "Khớp SL" },
+  { key: "matchedDebt", label: "Khớp CN" },
+];
+
+// Khớp CN dính tới tiền nên giữ cho admin, như ô tick trong chi tiết phiếu.
+function canSetItemFlag(key: ItemFlagKey, isAdmin: boolean) {
+  return isAdmin || key === "matchedQuantity";
 }
 
 function StatusBadge({
@@ -244,8 +277,20 @@ export function TransactionList({
   // sách đã được làm mới nên bỏ lớp tạm này đi.
   const [optimistic, applyOptimistic] = useOptimistic(
     transactions,
-    (rows, change: { ids: string[]; key: FlagKey; value: boolean }) =>
-      rows.map((t) => (change.ids.includes(t.id) ? { ...t, [change.key]: change.value } : t))
+    (
+      rows,
+      change:
+        | { kind: "flag"; ids: string[]; key: FlagKey; value: boolean }
+        | { kind: "item"; itemIds: string[]; key: ItemFlagKey; value: boolean }
+    ) =>
+      change.kind === "flag"
+        ? rows.map((t) => (change.ids.includes(t.id) ? { ...t, [change.key]: change.value } : t))
+        : rows.map((t) => ({
+            ...t,
+            items: t.items.map((it) =>
+              change.itemIds.includes(it.id) ? { ...it, [change.key]: change.value } : it
+            ),
+          }))
   );
   const rows = optimistic;
 
@@ -329,7 +374,7 @@ export function TransactionList({
   function commitFlag(ids: string[], key: FlagKey, value: boolean, undoable: boolean) {
     const flag = FLAGS[type].find((f) => f.key === key)!;
     startTransition(async () => {
-      applyOptimistic({ ids, key, value });
+      applyOptimistic({ kind: "flag", ids, key, value });
       try {
         await updateTransactionsFlags(ids, type, { [key]: value });
         router.refresh();
@@ -337,6 +382,38 @@ export function TransactionList({
         const who = ids.length === 1 ? "1 phiếu" : `${ids.length} phiếu`;
         toast.success(`${value ? "Đã đánh dấu" : "Đã bỏ"} "${flag.label}" cho ${who}`, {
           action: { label: "Hoàn tác", onClick: () => commitFlag(ids, key, !value, false) },
+        });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Không thể cập nhật");
+      }
+    });
+  }
+
+  // Khớp SL / khớp CN cho mọi món của các phiếu `ids`. Chỉ gửi những món thật
+  // sự đổi, để "Hoàn tác" trả lại đúng tình trạng từng món (vd. 2/5 chứ
+  // không phải 0/5).
+  function setItemFlag(ids: string[], key: ItemFlagKey, value: boolean) {
+    const itemIds = rows
+      .filter((t) => ids.includes(t.id))
+      .flatMap((t) => t.items.filter((it) => it[key] !== value).map((it) => it.id));
+    const label = ITEM_FLAGS.find((f) => f.key === key)!.label;
+    if (itemIds.length === 0) {
+      toast(`Các món đã ${value ? "" : "bỏ "}"${label}" hết rồi`);
+      return;
+    }
+    commitItemFlag(itemIds, key, value, true);
+  }
+
+  function commitItemFlag(itemIds: string[], key: ItemFlagKey, value: boolean, undoable: boolean) {
+    const label = ITEM_FLAGS.find((f) => f.key === key)!.label;
+    startTransition(async () => {
+      applyOptimistic({ kind: "item", itemIds, key, value });
+      try {
+        await updateItemsFlags(itemIds, type, { [key]: value });
+        router.refresh();
+        if (!undoable) return;
+        toast.success(`${value ? "Đã" : "Đã bỏ"} "${label}" cho ${itemIds.length} món`, {
+          action: { label: "Hoàn tác", onClick: () => commitItemFlag(itemIds, key, !value, false) },
         });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Không thể cập nhật");
@@ -407,6 +484,17 @@ export function TransactionList({
                 size="sm"
                 variant="outline"
                 onClick={() => setFlag([...selectedIds], f.key, true)}
+              >
+                <Check className="h-4 w-4" /> {f.label}
+              </Button>
+            ))}
+          {type === "IMPORT" &&
+            ITEM_FLAGS.filter((f) => canSetItemFlag(f.key, isAdmin)).map((f) => (
+              <Button
+                key={f.key}
+                size="sm"
+                variant="outline"
+                onClick={() => setItemFlag([...selectedIds], f.key, true)}
               >
                 <Check className="h-4 w-4" /> {f.label}
               </Button>
@@ -520,10 +608,36 @@ export function TransactionList({
                 {type === "IMPORT" ? (
                   <>
                     <TableCell className="hidden sm:table-cell">
-                      <MatchSummary items={t.items} field="matchedQuantity" />
+                      <MatchSummary
+                        items={t.items}
+                        field="matchedQuantity"
+                        onToggle={
+                          canSetItemFlag("matchedQuantity", isAdmin)
+                            ? () =>
+                                setItemFlag(
+                                  [t.id],
+                                  "matchedQuantity",
+                                  !t.items.every((it) => it.matchedQuantity)
+                                )
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
-                      <MatchSummary items={t.items} field="matchedDebt" />
+                      <MatchSummary
+                        items={t.items}
+                        field="matchedDebt"
+                        onToggle={
+                          canSetItemFlag("matchedDebt", isAdmin)
+                            ? () =>
+                                setItemFlag(
+                                  [t.id],
+                                  "matchedDebt",
+                                  !t.items.every((it) => it.matchedDebt)
+                                )
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell>
                       <StatusBadge

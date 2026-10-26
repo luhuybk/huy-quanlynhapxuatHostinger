@@ -237,6 +237,28 @@ export async function updateTransaction(
   revalidatePath(pathByType[type]);
 }
 
+// Tick khớp SL / khớp CN cho nhiều món một lúc (cả phiếu, hoặc nhiều phiếu
+// đang chọn). Nhận id từng món chứ không phải id phiếu, để "Hoàn tác" trả
+// đúng những món vừa đổi về như cũ.
+export async function updateItemsFlags(
+  itemIds: string[],
+  type: "IMPORT" | "EXPORT",
+  data: { matchedQuantity?: boolean; matchedDebt?: boolean }
+) {
+  const session = await requireSession();
+
+  if (session.user.role === "SHARED" && "matchedDebt" in data) {
+    throw new Error("Tài khoản chung không có quyền tick Khớp công nợ");
+  }
+  if (itemIds.length === 0) return;
+
+  await prisma.transactionItem.updateMany({
+    where: { id: { in: itemIds }, transaction: { type } },
+    data,
+  });
+  revalidatePath(pathByType[type]);
+}
+
 export async function updateItemFlags(
   itemId: string,
   type: "IMPORT" | "EXPORT",
