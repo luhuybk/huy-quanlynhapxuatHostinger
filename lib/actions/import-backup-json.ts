@@ -305,10 +305,12 @@ export async function importBackupJson(formData: FormData): Promise<ImportJsonSu
           id: string; skuId: string | null; itemName: string; quantity: number;
           note: string | null;
         };
+        // Bản backup cũ chưa có đơn vị: coi như lẻ.
+        const unitType = (it as { unitType?: string }).unitType === "CASE" ? "CASE" : "UNIT";
         await prisma.vnOrderItem.upsert({
           where: { id: itemId },
-          create: { id: itemId, vnOrderId: id, skuId, itemName, quantity, note: itemNote },
-          update: { skuId, itemName, quantity, note: itemNote },
+          create: { id: itemId, vnOrderId: id, skuId, itemName, quantity, unitType, note: itemNote },
+          update: { skuId, itemName, quantity, unitType, note: itemNote },
         });
       }
       summary.vnOrders++;

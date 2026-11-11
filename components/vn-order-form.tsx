@@ -41,6 +41,7 @@ type Row = {
   skuId: string | null;
   itemName: string;
   quantity: number;
+  unitType: "CASE" | "UNIT";
   note: string;
 };
 
@@ -53,11 +54,24 @@ export type EditableVnOrder = {
   note: string | null;
   ordered: boolean;
   arrived: boolean;
-  items: { skuId: string | null; itemName: string; quantity: number; note: string | null }[];
+  items: {
+    skuId: string | null;
+    itemName: string;
+    quantity: number;
+    unitType: string;
+    note: string | null;
+  }[];
 };
 
 function emptyRow(): Row {
-  return { rowId: crypto.randomUUID(), skuId: null, itemName: "", quantity: 1, note: "" };
+  return {
+    rowId: crypto.randomUUID(),
+    skuId: null,
+    itemName: "",
+    quantity: 1,
+    unitType: "UNIT",
+    note: "",
+  };
 }
 
 function rowsFromOrder(o: EditableVnOrder): Row[] {
@@ -66,6 +80,7 @@ function rowsFromOrder(o: EditableVnOrder): Row[] {
     skuId: it.skuId,
     itemName: it.itemName,
     quantity: it.quantity,
+    unitType: it.unitType === "CASE" ? "CASE" : "UNIT",
     note: it.note ?? "",
   }));
 }
@@ -157,6 +172,7 @@ export function VnOrderForm({
           skuId: r.skuId,
           itemName: r.itemName,
           quantity: Number(r.quantity),
+          unitType: r.unitType,
           note: r.note,
         }))
       )
@@ -198,6 +214,33 @@ export function VnOrderForm({
       onChange={(e) => updateRow(r.rowId, { quantity: Number(e.target.value) })}
     />
   );
+
+  const unitField = (r: Row) => (
+    <Select
+      value={r.unitType}
+      onValueChange={(v) => updateRow(r.rowId, { unitType: v as "CASE" | "UNIT" })}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="CASE">Thùng</SelectItem>
+        <SelectItem value="UNIT">Lẻ</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  // "= 96 sp" khi đặt theo thùng và biết quy cách thùng của SKU.
+  const caseHint = (r: Row) => {
+    if (r.unitType !== "CASE" || !r.skuId) return null;
+    const perCase = skus.find((s) => s.id === r.skuId)?.unitsPerCase ?? 1;
+    if (perCase <= 1) return null;
+    return (
+      <span className="text-sm text-muted-foreground">
+        = {(r.quantity || 0) * perCase} sp ({perCase}/thùng)
+      </span>
+    );
+  };
 
   const noteField = (r: Row) => (
     <Input
@@ -306,7 +349,11 @@ export function VnOrderForm({
                   {skuField(r)}
                   <div className="flex flex-col gap-1.5">
                     <Label>Số lượng</Label>
-                    {qtyField(r)}
+                    <div className="grid grid-cols-2 gap-2">
+                      {qtyField(r)}
+                      {unitField(r)}
+                    </div>
+                    {caseHint(r)}
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label>Ghi chú</Label>
@@ -318,11 +365,12 @@ export function VnOrderForm({
 
             {/* Máy tính: giữ dạng bảng cho nhập liệu nhanh. */}
             <div className="hidden overflow-x-auto sm:block">
-              <Table className="min-w-[620px]">
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-64">Sản phẩm</TableHead>
                     <TableHead className="w-24">Số lượng</TableHead>
+                    <TableHead className="w-28">Đơn vị</TableHead>
                     <TableHead>Ghi chú</TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
@@ -332,6 +380,10 @@ export function VnOrderForm({
                     <TableRow key={r.rowId}>
                       <TableCell>{skuField(r)}</TableCell>
                       <TableCell>{qtyField(r)}</TableCell>
+                      <TableCell>
+                        {unitField(r)}
+                        {caseHint(r)}
+                      </TableCell>
                       <TableCell>{noteField(r)}</TableCell>
                       <TableCell>{removeButton(r)}</TableCell>
                     </TableRow>

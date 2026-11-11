@@ -1,6 +1,9 @@
 export const dynamic = 'force-dynamic';
 
+import Link from "next/link";
+import { Images } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { Button } from "@/components/ui/button";
 import { auth } from "@/auth";
 import { getChinaOrderItems } from "@/lib/get-china-order-items";
 import { getVnOrders } from "@/lib/get-vn-orders";
@@ -61,7 +64,12 @@ export default async function OrderPage({
         </TabsList>
 
         <TabsContent value="vn" className="mt-4 flex flex-col gap-4">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/hang-can-order/theo-hinh">
+                <Images className="h-4 w-4" /> Order theo hình
+              </Link>
+            </Button>
             <VnOrderForm brands={brands} skus={skuOptions} />
           </div>
           <VnOrderFilters brands={brands} />

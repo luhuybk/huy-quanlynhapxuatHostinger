@@ -64,31 +64,48 @@ model Brand {
 }
 
 model Sku {
-  id            String   @id @default(cuid())
-  code          String   @unique
-  name          String
+  id             String    @id @default(cuid())
+  code           String    @unique
+  name           String
   // Size tách riêng khỏi name để mã định danh in ra thống nhất
   // ("1 - AKUMA - Clay - 56") và sau này lọc được theo size. Để trống được,
   // nên dữ liệu cũ (size nằm lẫn trong tên) vẫn chạy bình thường.
-  size          String?
-  brandId       String
-  unitsPerCase  Int      @default(1)
-  supplierId    String?
+  size           String?
+  brandId        String
+  unitsPerCase   Int       @default(1)
+  supplierId     String?
   // Khu vực đang chứa hàng. Đây là *thuộc tính* chứ không phải phần của mã:
   // dời hàng sang khu khác chỉ đổi trường này, code vẫn nguyên nên mọi phiếu
   // nhập/xuất cũ không bị vỡ liên kết.
-  zoneId        String?
-  isQuickCreate Boolean  @default(false)
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
+  zoneId         String?
+  isQuickCreate  Boolean   @default(false)
+  // Có ảnh hay không + mốc đổi ảnh gần nhất (dùng làm ?v= để trình duyệt
+  // cache lâu mà đổi ảnh vẫn thấy ngay). Ảnh nằm ở bảng SkuImage riêng để
+  // các truy vấn sku.findMany() khắp nơi không kéo theo cả file ảnh.
+  imageUpdatedAt DateTime?
+  sortOrder      Int       @default(0)
+  createdAt      DateTime  @default(now())
 
   brand        Brand             @relation(fields: [brandId], references: [id])
   supplier     Supplier?         @relation(fields: [supplierId], references: [id])
   zone         Zone?             @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   items        TransactionItem[]
   vnOrderItems VnOrderItem[]
+  image        SkuImage?
 
   @@index([zoneId])
+}
+
+// Ảnh sản phẩm, lưu thẳng trong database: máy chủ Hostinger build lại từ
+// đầu mỗi lần deploy nên file ghi ra đĩa sẽ mất. Ảnh được thu nhỏ ở trình
+// duyệt trước khi gửi lên nên mỗi ảnh chỉ cỡ vài chục KB.
+model SkuImage {
+  skuId     String   @id
+  mimeType  String
+  data      Bytes    @db.MediumBlob
+  updatedAt DateTime @updatedAt
+
+  sku Sku @relation(fields: [skuId], references: [id], onDelete: Cascade)
 }
 
 // Mặt bằng một kho, vẽ theo lưới ô vuông. Hình dạng (chữ nhật, chữ L, hay
@@ -232,6 +249,9 @@ model VnOrderItem {
   skuId     String?
   itemName  String
   quantity  Int
+  // "CASE" = đặt theo thùng, "UNIT" = đặt lẻ (giống TransactionItem). Đợt
+  // cũ trước khi có ô này đều là lẻ.
+  unitType  String  @default("UNIT")
   note      String?
 
   vnOrder VnOrder @relation(fields: [vnOrderId], references: [id], onDelete: Cascade)

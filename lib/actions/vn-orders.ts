@@ -9,6 +9,7 @@ export type VnOrderItemInput = {
   skuId: string | null;
   itemName: string;
   quantity: number;
+  unitType?: "CASE" | "UNIT";
   note?: string;
 };
 
@@ -47,6 +48,7 @@ function normalizeItems(items: VnOrderItemInput[]) {
       skuId: item.skuId || null,
       itemName,
       quantity: item.quantity,
+      unitType: item.unitType === "CASE" ? "CASE" : "UNIT",
       note: item.note?.trim() || null,
     };
   });
@@ -65,12 +67,12 @@ export async function createVnOrder(formData: FormData) {
   if (!brandId) throw new Error("Vui lòng chọn brand");
   if (Number.isNaN(date.getTime())) throw new Error("Ngày không hợp lệ");
 
-  await prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     // Sinh mã bằng chính client của transaction để 2 đợt tạo cùng lúc không
     // đếm ra cùng một số thứ tự.
     const code = await generateVnOrderCode(date, tx);
 
-    await tx.vnOrder.create({
+    return tx.vnOrder.create({
       data: {
         code,
         date,
@@ -81,10 +83,13 @@ export async function createVnOrder(formData: FormData) {
         createdById: session.user.id,
         items: { create: items },
       },
+      select: { id: true },
     });
   });
 
   revalidatePath("/hang-can-order");
+  // Trang order theo hình cần id để mở ngay bảng copy gửi hãng cho đợt vừa tạo.
+  return created;
 }
 
 export async function updateVnOrder(id: string, formData: FormData) {

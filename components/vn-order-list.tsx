@@ -29,7 +29,12 @@ import {
   markVnOrdersOrdered,
 } from "@/lib/actions/vn-orders";
 import { CopyOrderDialog } from "@/components/copy-order-dialog";
-import { buildOrderText, mergeOrderItems } from "@/lib/order-text";
+import {
+  buildOrderText,
+  formatOrderQty,
+  formatTotalQty,
+  mergeOrderItems,
+} from "@/lib/order-text";
 import { VnOrderForm, type EditableVnOrder } from "@/components/vn-order-form";
 import type { SkuOption } from "@/components/sku-picker";
 
@@ -50,6 +55,7 @@ type VnOrderListItem = {
     skuId: string | null;
     itemName: string;
     quantity: number;
+    unitType: string;
     note: string | null;
   }[];
 };
@@ -125,6 +131,7 @@ export function VnOrderList({
           skuId: it.skuId,
           itemName: it.itemName,
           quantity: it.quantity,
+          unitType: it.unitType,
           note: it.note,
         })),
       }
@@ -178,7 +185,7 @@ export function VnOrderList({
                 <TableCell className="font-medium">{o.brand.name}</TableCell>
                 <TableCell className="hidden sm:table-cell">{o.items.length}</TableCell>
                 <TableCell className="hidden sm:table-cell">
-                  {o.items.reduce((sum, it) => sum + it.quantity, 0)}
+                  {formatTotalQty(o.items)}
                 </TableCell>
                 <TableCell>
                   <Badge variant={o.ordered ? "success" : "outline"}>
@@ -282,7 +289,7 @@ export function VnOrderList({
                   <div key={it.id} className="flex flex-col gap-1 rounded-lg border p-3">
                     <p className="font-medium">{it.itemName}</p>
                     <p>
-                      Số lượng: <span className="font-medium">{it.quantity}</span>
+                      Số lượng: <span className="font-medium">{formatOrderQty(it)}</span>
                     </p>
                     {it.note && <p className="text-muted-foreground">{it.note}</p>}
                   </div>
@@ -302,7 +309,7 @@ export function VnOrderList({
                     {detail.items.map((it) => (
                       <TableRow key={it.id}>
                         <TableCell>{it.itemName}</TableCell>
-                        <TableCell className="font-medium">{it.quantity}</TableCell>
+                        <TableCell className="font-medium">{formatOrderQty(it)}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {it.note}
                         </TableCell>
