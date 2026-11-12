@@ -81,6 +81,10 @@ model Sku {
   // Phân loại (Sáp, Xịt phồng, Dưỡng...) dùng chung cho mọi brand. Để trống
   // được: mã chưa phân loại vẫn hiện, chỉ nằm ở nhóm "Chưa phân loại".
   categoryId     String?
+  // Hãng báo hết hàng (mã này tạm không đặt được). Đây là tình trạng bên hãng,
+  // không phải tồn kho của mình. supplierStockAt = lúc cập nhật gần nhất.
+  supplierOutOfStock Boolean   @default(false)
+  supplierStockAt    DateTime?
   isQuickCreate  Boolean   @default(false)
   // Có ảnh hay không + mốc đổi ảnh gần nhất (dùng làm ?v= để trình duyệt
   // cache lâu mà đổi ảnh vẫn thấy ngay). Ảnh nằm ở bảng SkuImage riêng để

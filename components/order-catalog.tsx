@@ -3,11 +3,14 @@
 import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Camera, ImageOff, Minus, Plus, Search } from "lucide-react";
+import { ArrowUpDown, Camera, ClipboardPaste, ImageOff, Minus, PackageCheck, Plus, Search, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CopyOrderDialog } from "@/components/copy-order-dialog";
+import { SupplierStockDialog } from "@/components/supplier-stock-dialog";
+import { CatalogSortGroup } from "@/components/catalog-sort-group";
+import { reorderSkuGroup, setSkusSupplierStock } from "@/lib/actions/catalog";
 import { createVnOrder, markVnOrdersOrdered } from "@/lib/actions/vn-orders";
 import { removeSkuImage, setSkuImage } from "@/lib/actions/sku-images";
 import { buildOrderText, formatTotalQty } from "@/lib/order-text";
@@ -24,7 +27,13 @@ export type CatalogSku = {
   unitsPerCase: number;
   categoryId: string | null;
   imageUrl: string | null;
+  // Hãng đang báo hết mã này (cập nhật ở chế độ "Tình trạng hãng").
+  supplierOutOfStock: boolean;
+  supplierStockAt: string | null;
 };
+
+// Đặt hàng / cập nhật còn-hết bên hãng / sắp xếp thứ tự hiển thị.
+type Mode = "order" | "stock" | "sort";
 
 type CatalogCategory = { id: string; name: string };
 // Nhóm giả cho các mã chưa gán phân loại, luôn nằm cuối.
@@ -96,11 +105,24 @@ function CatalogBody({
   const [categoryId, setCategoryId] = useState("all");
   const [zoom, setZoom] = useState<CatalogSku | null>(null);
   const [saved, setSaved] = useState<{ id: string; text: (n: boolean) => string } | null>(null);
+  const [mode, setMode] = useState<Mode>("order");
+  const [hideOut, setHideOut] = useState(false);
+  const [stockDialog, setStockDialog] = useState(false);
+
+  // Bản sao để đổi còn/hết và thứ tự hiện ngay, không chờ server; khi trang
+  // tải lại dữ liệu mới thì lấy theo server.
+  const [items, setItems] = useState(skus);
+  const [prevSkus, setPrevSkus] = useState(skus);
+  if (skus !== prevSkus) {
+    setPrevSkus(skus);
+    setItems(skus);
+  }
 
   const brand = brands.find((b) => b.id === brandId);
-  const lines = drafts[brandId] ?? {};
+  const lines = useMemo(() => drafts[brandId] ?? {}, [drafts, brandId]);
 
-  const brandSkus = useMemo(() => skus.filter((s) => s.brandId === brandId), [skus, brandId]);
+  const brandSkus = useMemo(() => items.filter((s) => s.brandId === brandId), [items, brandId]);
+  const outCount = brandSkus.filter((s) => s.supplierOutOfStock).length;
 
   // Chỉ hiện những phân loại brand này có hàng; "Chưa phân loại" luôn xếp cuối.
   const brandCategories = useMemo(() => {
@@ -114,12 +136,16 @@ function CatalogBody({
   }, [categories, brandSkus]);
   const activeCategory = brandCategories.some((c) => c.id === categoryId) ? categoryId : "all";
 
+  // Lúc sắp xếp phải thấy đủ cả nhóm, nên bỏ qua ô tìm và nút ẩn mã hết hàng.
   const visible = useMemo(() => {
+    if (mode === "sort") return brandSkus;
     const q = query.trim().toLowerCase();
     return brandSkus.filter(
-      (s) => !q || itemName(s).toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+      (s) =>
+        (!q || itemName(s).toLowerCase().includes(q) || s.code.toLowerCase().includes(q)) &&
+        !(mode === "order" && hideOut && s.supplierOutOfStock && !((lines[s.id]?.qty ?? 0) > 0))
     );
-  }, [brandSkus, query]);
+  }, [brandSkus, query, mode, hideOut, lines]);
 
   // Chia theo phân loại để lướt nhanh: đang chọn một phân loại thì chỉ còn nhóm đó.
   const groups = useMemo(() => {
@@ -145,7 +171,7 @@ function CatalogBody({
     const i = categories.findIndex((c) => c.id === s.categoryId);
     return i === -1 ? categories.length : i;
   };
-  const picked = skus
+  const picked = items
     .filter((s) => s.brandId === brandId && (lines[s.id]?.qty ?? 0) > 0)
     .sort((a, b) => categoryRank(a) - categoryRank(b))
     .map((s) => ({ sku: s, line: lines[s.id] }));
@@ -173,8 +199,61 @@ function CatalogBody({
     });
   }
 
+  function setStock(ids: string[], out: boolean) {
+    if (ids.length === 0) return;
+    const at = new Date().toISOString();
+    const before = new Map(items.filter((s) => ids.includes(s.id)).map((s) => [s.id, s]));
+    setItems((prev) =>
+      prev.map((s) => (ids.includes(s.id) ? { ...s, supplierOutOfStock: out, supplierStockAt: at } : s))
+    );
+    startTransition(async () => {
+      try {
+        await setSkusSupplierStock(ids, out);
+      } catch {
+        setItems((prev) => prev.map((s) => before.get(s.id) ?? s));
+        toast.error("Không lưu được tình trạng hàng");
+      }
+    });
+  }
+
+  function applySupplierList(availableIds: string[], outIds: string[]) {
+    setStock(availableIds, false);
+    setStock(outIds, true);
+    setStockDialog(false);
+    toast.success(
+      `Đã cập nhật: ${availableIds.length} mã còn hàng` + (outIds.length ? `, ${outIds.length} mã hãng hết` : "")
+    );
+  }
+
+  function reorderGroup(orderedIds: string[]) {
+    const prevItems = items;
+    // Xếp lại các mã của nhóm vào đúng những vị trí nhóm đang chiếm trong danh sách.
+    const slots = items.flatMap((s, i) => (orderedIds.includes(s.id) ? [i] : []));
+    const byId = new Map(items.map((s) => [s.id, s]));
+    const next = [...items];
+    slots.forEach((slot, k) => (next[slot] = byId.get(orderedIds[k])!));
+    setItems(next);
+    startTransition(async () => {
+      try {
+        await reorderSkuGroup(orderedIds);
+      } catch (err) {
+        setItems(prevItems);
+        toast.error(err instanceof Error ? err.message : "Không lưu được thứ tự");
+      }
+    });
+  }
+
   function handleSave() {
     if (!brand || picked.length === 0) return;
+    const outPicked = picked.filter(({ sku }) => sku.supplierOutOfStock);
+    if (
+      outPicked.length > 0 &&
+      !confirm(
+        `Hãng đang báo hết ${outPicked.length} món: ${outPicked.map(({ sku }) => itemName(sku)).join(", ")}.\nVẫn lưu đợt order?`
+      )
+    ) {
+      return;
+    }
     const items = picked.map(({ sku, line }) => ({
       skuId: sku.id,
       itemName: itemName(sku),
@@ -238,15 +317,60 @@ function CatalogBody({
         })}
       </div>
 
-      <div className="relative sm:max-w-xs">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Tìm trong ${brand?.name ?? "brand"}…`}
-          className="pl-8"
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-lg border p-0.5" role="group" aria-label="Chế độ">
+          {(
+            [
+              ["order", "Đặt hàng", ShoppingCart],
+              ["stock", "Tình trạng hãng", PackageCheck],
+              ["sort", "Sắp xếp", ArrowUpDown],
+            ] as const
+          ).map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={mode === value}
+              onClick={() => setMode(value)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm",
+                mode === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+        {mode !== "sort" && (
+          <div className="relative min-w-48 flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Tìm trong ${brand?.name ?? "brand"}…`}
+              className="pl-8"
+            />
+          </div>
+        )}
+        {mode === "order" && outCount > 0 && (
+          <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={hideOut}
+              onChange={(e) => setHideOut(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            Ẩn {outCount} mã hãng hết
+          </label>
+        )}
       </div>
+
+      {mode === "sort" && (
+        <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Kéo tay cầm <span aria-hidden>⠿</span> hoặc bấm mũi tên để đổi chỗ trong từng nhóm — lưu ngay
+          khi thả. Thứ tự phân loại đổi ở Cài đặt → Phân loại, thứ tự brand ở Cài đặt → Brand.
+        </p>
+      )}
 
       {brandCategories.length > 1 && (
         <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
@@ -294,22 +418,33 @@ function CatalogBody({
               <span className="font-normal tabular-nums normal-case">{g.items.length} mã</span>
             </h2>
           )}
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))]">
-            {g.items.map((s) => (
-              <SkuCard
-                key={s.id}
-                sku={s}
-                line={lines[s.id]}
-                onChange={(patch) => updateLine(s.id, patch)}
-                onZoom={() => setZoom(s)}
-              />
-            ))}
-          </div>
+          {mode === "sort" ? (
+            <CatalogSortGroup
+              id={`sort-${brandId}-${g.id}`}
+              items={g.items.map((s) => ({ id: s.id, code: s.code, label: itemName(s), imageUrl: s.imageUrl }))}
+              onReorder={reorderGroup}
+            />
+          ) : (
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))]">
+              {g.items.map((s) => (
+                <SkuCard
+                  key={s.id}
+                  sku={s}
+                  mode={mode}
+                  line={lines[s.id]}
+                  onChange={(patch) => updateLine(s.id, patch)}
+                  onStock={(out) => setStock([s.id], out)}
+                  onZoom={() => setZoom(s)}
+                />
+              ))}
+            </div>
+          )}
         </section>
       ))}
       {visibleCount === 0 && <p className="text-muted-foreground">Không có sản phẩm nào khớp.</p>}
 
       {/* Thanh tổng: nằm trên thanh điều hướng dưới cùng của điện thoại. */}
+      {mode === "order" && (
       <div className="sticky bottom-[4.5rem] z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:bottom-4">
         <div className="flex gap-5 text-sm text-muted-foreground">
           <div>
@@ -332,6 +467,39 @@ function CatalogBody({
           </Button>
         </div>
       </div>
+      )}
+
+      {mode === "stock" && brand && (
+        <div className="sticky bottom-[4.5rem] z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:bottom-4">
+          <p className="text-sm text-muted-foreground">
+            <b className="text-foreground tabular-nums">{brandSkus.length - outCount}</b> còn hàng ·{" "}
+            <b className="text-foreground tabular-nums">{outCount}</b> hãng hết
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="ghost"
+              disabled={outCount === 0 || isPending}
+              onClick={() => setStock(brandSkus.filter((s) => s.supplierOutOfStock).map((s) => s.id), false)}
+            >
+              Tất cả còn hàng
+            </Button>
+            <Button onClick={() => setStockDialog(true)}>
+              <ClipboardPaste className="h-4 w-4" /> Dán danh sách hãng gửi
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {brand && (
+        <SupplierStockDialog
+          open={stockDialog}
+          onOpenChange={setStockDialog}
+          brandName={brand.name}
+          skus={brandSkus.map((s) => ({ id: s.id, name: s.name, size: s.size }))}
+          pending={isPending}
+          onApply={applySupplierList}
+        />
+      )}
 
       <Dialog open={!!zoom} onOpenChange={(o) => !o && setZoom(null)}>
         <DialogContent className="w-[calc(100%-1rem)] max-w-xl sm:max-w-xl">
@@ -361,26 +529,41 @@ function CatalogBody({
   );
 }
 
+function formatDay(iso: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function SkuCard({
   sku,
+  mode,
   line,
   onChange,
+  onStock,
   onZoom,
 }: {
   sku: CatalogSku;
+  mode: Mode;
   line?: Line;
   onChange: (patch: Partial<Line>) => void;
+  onStock: (outOfStock: boolean) => void;
   onZoom: () => void;
 }) {
   const qty = line?.qty ?? 0;
   const unit = line?.unit ?? "UNIT";
   const on = qty > 0;
+  const out = sku.supplierOutOfStock;
+  // Hãng hết thì khoá thêm mới; món đã lỡ chọn từ trước vẫn giảm/xoá được.
+  const locked = mode === "order" && out && !on;
 
   return (
     <article
       className={cn(
         "grid grid-cols-[6rem_minmax(0,1fr)] gap-3 rounded-xl border bg-card p-3 transition-colors",
-        on && "border-primary ring-1 ring-primary"
+        on && mode === "order" && "border-primary ring-1 ring-primary",
+        out && mode === "order" && !on && "opacity-55",
+        out && on && mode === "order" && "border-amber-500 ring-amber-500"
       )}
     >
       {sku.imageUrl ? (
@@ -399,13 +582,43 @@ function SkuCard({
 
       <div className="flex min-w-0 flex-col gap-2">
         <div>
-          <p className="font-mono text-xs text-muted-foreground">{sku.code}</p>
+          <p className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-muted-foreground">
+            {sku.code}
+            {out && (
+              <span className="rounded bg-destructive/10 px-1.5 py-0.5 font-sans font-medium text-destructive">
+                Hãng hết{sku.supplierStockAt ? ` · ${formatDay(sku.supplierStockAt)}` : ""}
+              </span>
+            )}
+          </p>
           <p className="leading-snug font-semibold">{itemName(sku)}</p>
           {sku.unitsPerCase > 1 && (
             <p className="text-sm text-muted-foreground">1 thùng = {sku.unitsPerCase}</p>
           )}
         </div>
 
+        {mode === "stock" ? (
+          <div className="flex w-fit rounded-lg border p-0.5" role="group" aria-label={`Tình trạng ${sku.name} bên hãng`}>
+            {([false, true] as const).map((v) => (
+              <button
+                key={String(v)}
+                type="button"
+                aria-pressed={out === v}
+                onClick={() => out !== v && onStock(v)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm",
+                  out === v
+                    ? v
+                      ? "bg-destructive text-white"
+                      : "bg-emerald-600 text-white"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {v ? "Hãng hết" : "Còn hàng"}
+              </button>
+            ))}
+          </div>
+        ) : (
+        <>
         <div className="flex flex-wrap items-center gap-2">
           {/* Thùng / Lẻ */}
           <div className="flex rounded-lg border p-0.5" role="group" aria-label="Đơn vị">
@@ -439,13 +652,15 @@ function SkuCard({
               aria-label={`Số lượng ${sku.name}`}
               value={qty || ""}
               placeholder="0"
+              disabled={locked}
               onChange={(e) => onChange({ qty: Math.min(99999, Number(e.target.value.replace(/\D/g, "")) || 0) })}
               className="h-8 w-12 border-x bg-transparent text-center font-mono tabular-nums outline-none"
             />
             <button
               type="button"
               aria-label="Tăng"
-              className="flex h-8 w-8 items-center justify-center"
+              disabled={locked}
+              className="flex h-8 w-8 items-center justify-center disabled:opacity-40"
               onClick={() => onChange({ qty: qty + 1 })}
             >
               <Plus className="h-4 w-4" />
@@ -463,6 +678,8 @@ function SkuCard({
             placeholder="Ghi chú món này"
             className="h-8 text-sm"
           />
+        )}
+        </>
         )}
       </div>
     </article>

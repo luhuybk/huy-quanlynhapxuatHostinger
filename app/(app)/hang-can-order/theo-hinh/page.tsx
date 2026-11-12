@@ -26,6 +26,8 @@ export default async function OrderByPicturePage({
         unitsPerCase: true,
         categoryId: true,
         imageUpdatedAt: true,
+        supplierOutOfStock: true,
+        supplierStockAt: true,
       },
     }),
     prisma.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
@@ -40,6 +42,8 @@ export default async function OrderByPicturePage({
     unitsPerCase: s.unitsPerCase,
     categoryId: s.categoryId,
     imageUrl: skuImageUrl(s),
+    supplierOutOfStock: s.supplierOutOfStock,
+    supplierStockAt: s.supplierStockAt?.toISOString() ?? null,
   }));
   // Chỉ hiện brand có sản phẩm, kèm số mã để biết brand nào đã có ảnh.
   const brandList = brands

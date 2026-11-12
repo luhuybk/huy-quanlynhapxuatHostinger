@@ -230,6 +230,42 @@ export async function setSkusCategory(skuIds: string[], categoryId: string | nul
   revalidateCategoryPages();
 }
 
+// --- Tình trạng hàng bên hãng & thứ tự hiển thị (trang Order theo hình) ---
+
+// Hãng báo còn/hết: chỉ là cờ để lúc order biết mã nào đang không đặt được.
+export async function setSkusSupplierStock(skuIds: string[], outOfStock: boolean) {
+  await requireAuth();
+  if (skuIds.length === 0) return;
+  await prisma.sku.updateMany({
+    where: { id: { in: skuIds } },
+    data: { supplierOutOfStock: outOfStock, supplierStockAt: new Date() },
+  });
+  revalidatePath("/hang-can-order");
+}
+
+// Sắp lại thứ tự một nhóm mã (cùng brand + phân loại) mà không đụng tới các
+// mã khác: lấy đúng các "chỗ" sortOrder nhóm đang giữ rồi chia lại theo thứ tự
+// mới. Nhờ vậy thứ tự của brand/nhóm khác (và bảng SKU ở Cài đặt) vẫn nguyên.
+export async function reorderSkuGroup(orderedIds: string[]) {
+  await requireAuth();
+  if (new Set(orderedIds).size !== orderedIds.length) throw new Error("Danh sách bị trùng mã");
+  const rows = await prisma.sku.findMany({
+    where: { id: { in: orderedIds } },
+    select: { sortOrder: true },
+  });
+  if (rows.length !== orderedIds.length) {
+    throw new Error("Danh sách mã đã thay đổi, hãy tải lại trang");
+  }
+  const slots = rows.map((r) => r.sortOrder).sort((a, b) => a - b);
+  // Hiếm khi có hai mã trùng sortOrder; nếu có thì giãn ra cho khỏi hoà nhau.
+  for (let i = 1; i < slots.length; i++) if (slots[i] <= slots[i - 1]) slots[i] = slots[i - 1] + 1;
+  await prisma.$transaction(
+    orderedIds.map((id, i) => prisma.sku.update({ where: { id }, data: { sortOrder: slots[i] } }))
+  );
+  revalidatePath("/hang-can-order");
+  revalidatePath("/cai-dat");
+}
+
 // --- Sku ---
 
 // Select của khu vực gửi "none" khi chưa gán khu, vì Radix Select không nhận
