@@ -114,7 +114,7 @@ export function ImportBackupDialog() {
               <li>Hàng Trung cần order: {jsonSummary.chinaOrderItems}</li>
               <li>Đợt order hàng VN: {jsonSummary.vnOrders}</li>
               <li>
-                Kho: {jsonSummary.warehouses} · Khu vực: {jsonSummary.zones}
+                Kho: {jsonSummary.warehouses} · Khu vực: {jsonSummary.zones} · Phân loại: {jsonSummary.categories}
               </li>
             </ul>
             {jsonSummary.warnings.length > 0 && (

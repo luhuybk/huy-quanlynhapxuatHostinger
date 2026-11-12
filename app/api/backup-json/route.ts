@@ -28,6 +28,7 @@ export async function GET() {
     chinaOrderItems,
     vnOrders,
     warehouses,
+    categories,
   ] = await Promise.all([
     prisma.user.findMany(),
     prisma.brand.findMany(),
@@ -39,6 +40,7 @@ export async function GET() {
     prisma.chinaOrderItem.findMany(),
     prisma.vnOrder.findMany({ include: { items: true } }),
     prisma.warehouse.findMany({ include: { zones: true } }),
+    prisma.category.findMany(),
   ]);
 
   const payload = {
@@ -55,6 +57,7 @@ export async function GET() {
     chinaOrderItems,
     vnOrders,
     warehouses,
+    categories,
   };
 
   const today = new Date().toISOString().slice(0, 10);

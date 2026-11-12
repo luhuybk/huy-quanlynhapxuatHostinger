@@ -78,6 +78,9 @@ model Sku {
   // dời hàng sang khu khác chỉ đổi trường này, code vẫn nguyên nên mọi phiếu
   // nhập/xuất cũ không bị vỡ liên kết.
   zoneId         String?
+  // Phân loại (Sáp, Xịt phồng, Dưỡng...) dùng chung cho mọi brand. Để trống
+  // được: mã chưa phân loại vẫn hiện, chỉ nằm ở nhóm "Chưa phân loại".
+  categoryId     String?
   isQuickCreate  Boolean   @default(false)
   // Có ảnh hay không + mốc đổi ảnh gần nhất (dùng làm ?v= để trình duyệt
   // cache lâu mà đổi ảnh vẫn thấy ngay). Ảnh nằm ở bảng SkuImage riêng để
@@ -89,11 +92,22 @@ model Sku {
   brand        Brand             @relation(fields: [brandId], references: [id])
   supplier     Supplier?         @relation(fields: [supplierId], references: [id])
   zone         Zone?             @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  category     Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   items        TransactionItem[]
   vnOrderItems VnOrderItem[]
   image        SkuImage?
 
   @@index([zoneId])
+  @@index([categoryId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  skus Sku[]
 }
 
 // Ảnh sản phẩm, lưu thẳng trong database: máy chủ Hostinger build lại từ

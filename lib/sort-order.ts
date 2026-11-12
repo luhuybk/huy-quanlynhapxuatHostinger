@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 // MySQL requires an autoincrement column to be a key, so new rows now get an
 // explicit next value computed here instead.
 export async function nextSortOrder(
-  model: "supplier" | "agent" | "brand" | "sku" | "warehouse" | "zone"
+  model: "supplier" | "agent" | "brand" | "sku" | "warehouse" | "zone" | "category"
 ): Promise<number> {
   let max: number | null;
   switch (model) {
@@ -25,6 +25,9 @@ export async function nextSortOrder(
       break;
     case "zone":
       max = (await prisma.zone.aggregate({ _max: { sortOrder: true } }))._max.sortOrder;
+      break;
+    case "category":
+      max = (await prisma.category.aggregate({ _max: { sortOrder: true } }))._max.sortOrder;
       break;
   }
   return (max ?? -1) + 1;

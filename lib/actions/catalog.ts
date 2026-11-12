@@ -174,12 +174,73 @@ export async function reorderBrands(orderedIds: string[]) {
   revalidatePath("/so-do-kho");
 }
 
+// --- Category (phân loại: Sáp, Xịt phồng, Dưỡng...) ---
+
+function revalidateCategoryPages() {
+  revalidatePath("/cai-dat");
+  revalidatePath("/hang-can-order");
+}
+
+export async function createCategory(formData: FormData) {
+  await requireAuth();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Tên phân loại không được để trống");
+  if (await prisma.category.findUnique({ where: { name } })) {
+    throw new Error(`Đã có phân loại "${name}"`);
+  }
+  await prisma.category.create({
+    data: { name, sortOrder: await nextSortOrder("category") },
+  });
+  revalidateCategoryPages();
+}
+
+export async function updateCategory(id: string, formData: FormData) {
+  await requireAuth();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Tên phân loại không được để trống");
+  const dup = await prisma.category.findUnique({ where: { name } });
+  if (dup && dup.id !== id) throw new Error(`Đã có phân loại "${name}"`);
+  await prisma.category.update({ where: { id }, data: { name } });
+  revalidateCategoryPages();
+}
+
+// Xoá phân loại không xoá SKU: các mã đó chỉ về "Chưa phân loại" (SetNull).
+export async function deleteCategory(id: string) {
+  await requireAuth();
+  await prisma.category.delete({ where: { id } });
+  revalidateCategoryPages();
+}
+
+export async function reorderCategories(orderedIds: string[]) {
+  await requireAuth();
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      prisma.category.update({ where: { id }, data: { sortOrder: index } })
+    )
+  );
+  revalidateCategoryPages();
+}
+
+// Gán phân loại cho nhiều mã một lần (chọn nhiều dòng ở bảng SKU).
+// categoryId null = bỏ phân loại.
+export async function setSkusCategory(skuIds: string[], categoryId: string | null) {
+  await requireAuth();
+  if (skuIds.length === 0) return;
+  await prisma.sku.updateMany({ where: { id: { in: skuIds } }, data: { categoryId } });
+  revalidateCategoryPages();
+}
+
 // --- Sku ---
 
 // Select của khu vực gửi "none" khi chưa gán khu, vì Radix Select không nhận
 // value rỗng — giống parseOwnerId ở trên.
 function parseZoneId(formData: FormData): string | null {
   const raw = String(formData.get("zoneId") ?? "").trim();
+  return raw && raw !== "none" ? raw : null;
+}
+
+function parseCategoryId(formData: FormData): string | null {
+  const raw = String(formData.get("categoryId") ?? "").trim();
   return raw && raw !== "none" ? raw : null;
 }
 
@@ -191,6 +252,7 @@ export async function createSku(formData: FormData) {
   const supplierId = String(formData.get("supplierId") ?? "") || null;
   const size = String(formData.get("size") ?? "").trim() || null;
   const zoneId = parseZoneId(formData);
+  const categoryId = parseCategoryId(formData);
   const isQuickCreate = formData.get("isQuickCreate") === "on";
   let code = String(formData.get("code") ?? "").trim();
 
@@ -216,6 +278,7 @@ export async function createSku(formData: FormData) {
       unitsPerCase,
       supplierId,
       zoneId,
+      categoryId,
       isQuickCreate,
       sortOrder: await nextSortOrder("sku"),
     },
@@ -234,6 +297,7 @@ export async function updateSku(id: string, formData: FormData) {
   const supplierId = String(formData.get("supplierId") ?? "") || null;
   const size = String(formData.get("size") ?? "").trim() || null;
   const zoneId = parseZoneId(formData);
+  const categoryId = parseCategoryId(formData);
   const isQuickCreate = formData.get("isQuickCreate") === "on";
 
   if (!name) throw new Error("Tên sản phẩm không được để trống");
@@ -244,7 +308,7 @@ export async function updateSku(id: string, formData: FormData) {
 
   await prisma.sku.update({
     where: { id },
-    data: { name, size, brandId, unitsPerCase, supplierId, zoneId, isQuickCreate },
+    data: { name, size, brandId, unitsPerCase, supplierId, zoneId, categoryId, isQuickCreate },
   });
   revalidatePath("/cai-dat");
   revalidatePath("/hang-ve-kho");

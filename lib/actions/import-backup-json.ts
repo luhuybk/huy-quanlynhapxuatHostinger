@@ -16,6 +16,7 @@ export type ImportJsonSummary = {
   vnOrders: number;
   warehouses: number;
   zones: number;
+  categories: number;
   warnings: string[];
 };
 
@@ -66,6 +67,7 @@ export async function importBackupJson(formData: FormData): Promise<ImportJsonSu
     vnOrders: 0,
     warehouses: 0,
     zones: 0,
+    categories: 0,
     warnings: [],
   };
 
@@ -172,19 +174,38 @@ export async function importBackupJson(formData: FormData): Promise<ImportJsonSu
     }
   }
 
+  // Phân loại cũng phải vào trước SKU (Sku.categoryId). Backup cũ chưa có
+  // mục này thì bỏ qua, SKU giữ nguyên phân loại đang có.
+  for (const c of arr("categories")) {
+    try {
+      const { id, name, sortOrder, createdAt } = c as {
+        id: string; name: string; sortOrder: number; createdAt: string;
+      };
+      await prisma.category.upsert({
+        where: { id },
+        create: { id, name, sortOrder, createdAt: toDate(createdAt) },
+        update: { name, sortOrder },
+      });
+      summary.categories++;
+    } catch (e) {
+      summary.warnings.push(`Phân loại "${c.name}": ${e instanceof Error ? e.message : "lỗi"}`);
+    }
+  }
+
   for (const s of arr("skus")) {
     try {
       const {
-        id, code, name, size, brandId, unitsPerCase, supplierId, zoneId, isQuickCreate,
-        sortOrder, createdAt,
+        id, code, name, size, brandId, unitsPerCase, supplierId, zoneId, categoryId,
+        isQuickCreate, sortOrder, createdAt,
       } = s as {
         id: string; code: string; name: string; size: string | null; brandId: string;
         unitsPerCase: number; supplierId: string | null; zoneId: string | null;
-        isQuickCreate: boolean; sortOrder: number; createdAt: string;
+        categoryId?: string | null; isQuickCreate: boolean; sortOrder: number; createdAt: string;
       };
       const data = {
         code, name, size: size ?? null, brandId, unitsPerCase, supplierId,
         zoneId: zoneId ?? null, isQuickCreate, sortOrder,
+        ...(categoryId !== undefined ? { categoryId } : {}),
       };
       await prisma.sku.upsert({
         where: { id },

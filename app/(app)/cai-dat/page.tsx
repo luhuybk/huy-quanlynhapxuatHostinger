@@ -11,6 +11,7 @@ import {
 import { SupplierManager } from "@/components/settings/supplier-manager";
 import { AgentManager } from "@/components/settings/agent-manager";
 import { BrandManager } from "@/components/settings/brand-manager";
+import { CategoryManager } from "@/components/settings/category-manager";
 import { SkuManager } from "@/components/settings/sku-manager";
 import { UserManager } from "@/components/settings/user-manager";
 import { ImportBackupDialog } from "@/components/settings/import-backup-dialog";
@@ -29,7 +30,7 @@ export default async function SettingsPage() {
     ? { OR: [{ ownerId: null }, { ownerId: session!.user.id }] }
     : undefined;
 
-  const [suppliers, agents, brands, skus, users, warehouses] = await Promise.all([
+  const [suppliers, agents, brands, skus, users, warehouses, categories] = await Promise.all([
     prisma.supplier.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.agent.findMany({
       where: agentWhere,
@@ -60,6 +61,10 @@ export default async function SettingsPage() {
         },
       },
     }),
+    prisma.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, _count: { select: { skus: true } } },
+    }),
   ]);
 
   return (
@@ -88,6 +93,7 @@ export default async function SettingsPage() {
           <TabsTrigger value="supplier">Đối tác</TabsTrigger>
           <TabsTrigger value="agent">Đại lý</TabsTrigger>
           <TabsTrigger value="brand">Brand</TabsTrigger>
+          <TabsTrigger value="category">Phân loại</TabsTrigger>
           {isAdmin && <TabsTrigger value="users">Người dùng</TabsTrigger>}
         </TabsList>
         <TabsContent value="sku" className="mt-4">
@@ -96,6 +102,7 @@ export default async function SettingsPage() {
             brands={brands}
             suppliers={suppliers}
             warehouses={warehouses}
+            categories={categories}
           />
         </TabsContent>
         <TabsContent value="supplier" className="mt-4">
@@ -110,6 +117,9 @@ export default async function SettingsPage() {
         </TabsContent>
         <TabsContent value="brand" className="mt-4">
           <BrandManager brands={brands} />
+        </TabsContent>
+        <TabsContent value="category" className="mt-4">
+          <CategoryManager categories={categories} />
         </TabsContent>
         {isAdmin && (
           <TabsContent value="users" className="mt-4">

@@ -22,8 +22,13 @@ export type CatalogSku = {
   size: string | null;
   brandId: string;
   unitsPerCase: number;
+  categoryId: string | null;
   imageUrl: string | null;
 };
+
+type CatalogCategory = { id: string; name: string };
+// Nhóm giả cho các mã chưa gán phân loại, luôn nằm cuối.
+const UNCATEGORIZED = "__none";
 
 type Unit = "CASE" | "UNIT";
 type Line = { qty: number; unit: Unit; note: string };
@@ -59,6 +64,7 @@ const noopSubscribe = () => () => {};
 export function OrderCatalog(props: {
   brands: { id: string; name: string; count: number }[];
   skus: CatalogSku[];
+  categories: CatalogCategory[];
   initialBrandId?: string;
 }) {
   const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
@@ -69,10 +75,12 @@ export function OrderCatalog(props: {
 function CatalogBody({
   brands,
   skus,
+  categories,
   initialBrandId,
 }: {
   brands: { id: string; name: string; count: number }[];
   skus: CatalogSku[];
+  categories: CatalogCategory[];
   initialBrandId?: string;
 }) {
   const router = useRouter();
@@ -85,24 +93,61 @@ function CatalogBody({
     return withDraft?.id ?? brands[0]?.id ?? "";
   });
   const [query, setQuery] = useState("");
+  const [categoryId, setCategoryId] = useState("all");
   const [zoom, setZoom] = useState<CatalogSku | null>(null);
   const [saved, setSaved] = useState<{ id: string; text: (n: boolean) => string } | null>(null);
 
   const brand = brands.find((b) => b.id === brandId);
   const lines = drafts[brandId] ?? {};
 
+  const brandSkus = useMemo(() => skus.filter((s) => s.brandId === brandId), [skus, brandId]);
+
+  // Chỉ hiện những phân loại brand này có hàng; "Chưa phân loại" luôn xếp cuối.
+  const brandCategories = useMemo(() => {
+    const list: { id: string; name: string; count: number }[] = categories
+      .map((c) => ({ ...c, count: brandSkus.filter((s) => s.categoryId === c.id).length }))
+      .filter((c) => c.count > 0);
+    const known = new Set(categories.map((c) => c.id));
+    const loose = brandSkus.filter((s) => !s.categoryId || !known.has(s.categoryId)).length;
+    if (loose > 0) list.push({ id: UNCATEGORIZED, name: "Chưa phân loại", count: loose });
+    return list;
+  }, [categories, brandSkus]);
+  const activeCategory = brandCategories.some((c) => c.id === categoryId) ? categoryId : "all";
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return skus.filter(
-      (s) =>
-        s.brandId === brandId &&
-        (!q || itemName(s).toLowerCase().includes(q) || s.code.toLowerCase().includes(q))
+    return brandSkus.filter(
+      (s) => !q || itemName(s).toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
     );
-  }, [skus, brandId, query]);
+  }, [brandSkus, query]);
 
-  // Các món đã chọn, theo đúng thứ tự trong danh mục.
+  // Chia theo phân loại để lướt nhanh: đang chọn một phân loại thì chỉ còn nhóm đó.
+  const groups = useMemo(() => {
+    return brandCategories
+      .filter((c) => activeCategory === "all" || c.id === activeCategory)
+      .map((c) => ({
+        ...c,
+        items: visible.filter((s) =>
+          c.id === UNCATEGORIZED
+            ? !s.categoryId || !categories.some((k) => k.id === s.categoryId)
+            : s.categoryId === c.id
+        ),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [brandCategories, activeCategory, visible, categories]);
+  const visibleCount = groups.reduce((n, g) => n + g.items.length, 0);
+  // Brand chỉ có một nhóm thì khỏi in tiêu đề cho đỡ rối.
+  const showHeadings = brandCategories.length > 1;
+
+  // Các món đã chọn: gom theo phân loại (đúng thứ tự trong Cài đặt), trong
+  // từng phân loại giữ thứ tự danh mục — để bản copy gửi hãng cũng gọn theo nhóm.
+  const categoryRank = (s: CatalogSku) => {
+    const i = categories.findIndex((c) => c.id === s.categoryId);
+    return i === -1 ? categories.length : i;
+  };
   const picked = skus
     .filter((s) => s.brandId === brandId && (lines[s.id]?.qty ?? 0) > 0)
+    .sort((a, b) => categoryRank(a) - categoryRank(b))
     .map((s) => ({ sku: s, line: lines[s.id] }));
 
   function updateLine(skuId: string, patch: Partial<Line>) {
@@ -181,6 +226,7 @@ function CatalogBody({
               onClick={() => {
                 setBrandId(b.id);
                 setQuery("");
+                setCategoryId("all");
               }}
             >
               {b.name}
@@ -202,20 +248,66 @@ function CatalogBody({
         />
       </div>
 
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))]">
-        {visible.map((s) => (
-          <SkuCard
-            key={s.id}
-            sku={s}
-            line={lines[s.id]}
-            onChange={(patch) => updateLine(s.id, patch)}
-            onZoom={() => setZoom(s)}
-          />
-        ))}
-        {visible.length === 0 && (
-          <p className="text-muted-foreground">Không có sản phẩm nào khớp.</p>
-        )}
-      </div>
+      {brandCategories.length > 1 && (
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+          {[{ id: "all", name: "Tất cả", count: brandSkus.length }, ...brandCategories].map((c) => {
+            const picked = brandSkus.filter(
+              (s) =>
+                (lines[s.id]?.qty ?? 0) > 0 &&
+                (c.id === "all" ||
+                  (c.id === UNCATEGORIZED
+                    ? !s.categoryId || !categories.some((k) => k.id === s.categoryId)
+                    : s.categoryId === c.id))
+            ).length;
+            const active = activeCategory === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCategoryId(c.id)}
+                aria-pressed={active}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors",
+                  active
+                    ? "border-foreground bg-foreground text-background"
+                    : "bg-background text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {c.name}
+                <span className={cn("text-xs tabular-nums", active ? "opacity-70" : "opacity-60")}>
+                  {c.count}
+                </span>
+                {picked > 0 && (
+                  <span className="rounded-full bg-amber-500 px-1.5 text-xs text-white">{picked}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {groups.map((g) => (
+        <section key={g.id} className="flex flex-col gap-2">
+          {showHeadings && (
+            <h2 className="flex items-baseline gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+              {g.name}
+              <span className="font-normal tabular-nums normal-case">{g.items.length} mã</span>
+            </h2>
+          )}
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))]">
+            {g.items.map((s) => (
+              <SkuCard
+                key={s.id}
+                sku={s}
+                line={lines[s.id]}
+                onChange={(patch) => updateLine(s.id, patch)}
+                onZoom={() => setZoom(s)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+      {visibleCount === 0 && <p className="text-muted-foreground">Không có sản phẩm nào khớp.</p>}
 
       {/* Thanh tổng: nằm trên thanh điều hướng dưới cùng của điện thoại. */}
       <div className="sticky bottom-[4.5rem] z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:bottom-4">

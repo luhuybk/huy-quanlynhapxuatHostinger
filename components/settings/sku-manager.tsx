@@ -26,7 +26,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { createSku, updateSku, deleteSku, reorderSkus } from "@/lib/actions/catalog";
+import {
+  createSku,
+  updateSku,
+  deleteSku,
+  reorderSkus,
+  setSkusCategory,
+} from "@/lib/actions/catalog";
 import { SortableTable } from "@/components/settings/sortable-table";
 import { SortableRow } from "@/components/settings/sortable-row";
 import { cn } from "@/lib/utils";
@@ -43,8 +49,10 @@ type Sku = {
   supplierId: string | null;
   zoneId: string | null;
   zone: { id: string; code: string; color: string } | null;
+  categoryId: string | null;
   isQuickCreate: boolean;
 };
+type Category = { id: string; name: string };
 type Brand = { id: string; name: string };
 type Supplier = { id: string; name: string };
 type WarehouseOption = {
@@ -57,11 +65,13 @@ function SkuFormFields({
   brands,
   suppliers,
   warehouses,
+  categories,
   defaults,
 }: {
   brands: Brand[];
   suppliers: Supplier[];
   warehouses: WarehouseOption[];
+  categories: Category[];
   defaults?: Sku;
 }) {
   return (
@@ -87,6 +97,22 @@ function SkuFormFields({
             {brands.map((b) => (
               <SelectItem key={b.id} value={b.id}>
                 {b.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="categoryId">Phân loại</Label>
+        <Select name="categoryId" defaultValue={defaults?.categoryId ?? "none"}>
+          <SelectTrigger id="categoryId" className="w-full">
+            <SelectValue placeholder="Chưa phân loại" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Chưa phân loại</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -168,11 +194,13 @@ export function SkuManager({
   brands,
   suppliers,
   warehouses,
+  categories,
 }: {
   skus: Sku[];
   brands: Brand[];
   suppliers: Supplier[];
   warehouses: WarehouseOption[];
+  categories: Category[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
@@ -187,13 +215,33 @@ export function SkuManager({
   // Lọc theo khu: 97 dòng rà bằng mắt rất cực, nhất là khi cần tìm những mã
   // chưa gán khu. "none" = chưa gán khu.
   const [zoneFilter, setZoneFilter] = useState("all");
-  const filtering = zoneFilter !== "all";
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const filtering = zoneFilter !== "all" || categoryFilter !== "all";
   const visible = useMemo(() => {
-    if (zoneFilter === "all") return items;
-    if (zoneFilter === "none") return items.filter((s) => !s.zoneId);
-    return items.filter((s) => s.zoneId === zoneFilter);
-  }, [items, zoneFilter]);
+    return items.filter((s) => {
+      if (zoneFilter === "none" ? s.zoneId : zoneFilter !== "all" && s.zoneId !== zoneFilter) return false;
+      if (categoryFilter === "none" ? s.categoryId : categoryFilter !== "all" && s.categoryId !== categoryFilter)
+        return false;
+      return true;
+    });
+  }, [items, zoneFilter, categoryFilter]);
   const unassignedCount = items.filter((s) => !s.zoneId).length;
+  const uncategorizedCount = items.filter((s) => !s.categoryId).length;
+
+  // Đổi phân loại ngay trên dòng: hiện liền, lưu ngầm, lỗi thì trả lại như cũ.
+  function handleSetCategory(sku: Sku, value: string) {
+    const categoryId = value === "none" ? null : value;
+    const before = sku.categoryId;
+    setItems((prev) => prev.map((s) => (s.id === sku.id ? { ...s, categoryId } : s)));
+    startTransition(async () => {
+      try {
+        await setSkusCategory([sku.id], categoryId);
+      } catch {
+        setItems((prev) => prev.map((s) => (s.id === sku.id ? { ...s, categoryId: before } : s)));
+        toast.error("Không đổi được phân loại");
+      }
+    });
+  }
 
   function handleCreate(formData: FormData) {
     startTransition(async () => {
@@ -261,6 +309,20 @@ export function SkuManager({
               ))}
             </SelectContent>
           </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả phân loại</SelectItem>
+              <SelectItem value="none">Chưa phân loại ({uncategorizedCount} mã)</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name} ({items.filter((s) => s.categoryId === c.id).length} mã)
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {filtering && (
             <span className="text-sm text-muted-foreground">
               {visible.length} mã — đang lọc nên tạm khoá kéo-thả sắp xếp
@@ -282,6 +344,7 @@ export function SkuManager({
                 brands={brands}
                 suppliers={suppliers}
                 warehouses={warehouses}
+                categories={categories}
               />
               <DialogFooter>
                 <Button type="submit" disabled={isPending}>
@@ -299,7 +362,7 @@ export function SkuManager({
         items={visible}
         onReorder={handleReorder}
         disabled={filtering}
-        className="min-w-[800px]"
+        className="min-w-[1000px]"
         header={
           <TableRow>
             <TableHead className="w-10" />
@@ -307,6 +370,7 @@ export function SkuManager({
             <TableHead>Khu</TableHead>
             <TableHead>Brand</TableHead>
             <TableHead>Tên sản phẩm</TableHead>
+            <TableHead>Phân loại</TableHead>
             <TableHead>Quy cách</TableHead>
             <TableHead>Tạo nhanh</TableHead>
             <TableHead className="w-24" />
@@ -339,6 +403,28 @@ export function SkuManager({
                     <span className="text-muted-foreground"> · {s.size}</span>
                   )}
                 </TableCell>
+                <TableCell>
+                  <Select
+                    value={s.categoryId ?? "none"}
+                    onValueChange={(v) => handleSetCategory(s, v)}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      aria-label={`Phân loại của ${s.name}`}
+                      className={cn("w-52", !s.categoryId && "text-muted-foreground")}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Chưa phân loại</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
                 <TableCell>1 thùng = {s.unitsPerCase} sp</TableCell>
                 <TableCell>
                   {s.isQuickCreate && <Badge variant="secondary">Nhanh</Badge>}
@@ -360,8 +446,8 @@ export function SkuManager({
             ))}
             {sorted.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
-                  {filtering ? "Không có mã hàng nào ở khu này" : "Chưa có SKU nào"}
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  {filtering ? "Không có mã hàng nào khớp bộ lọc" : "Chưa có SKU nào"}
                 </TableCell>
               </TableRow>
             )}
@@ -384,6 +470,7 @@ export function SkuManager({
                 brands={brands}
                 suppliers={suppliers}
                 warehouses={warehouses}
+                categories={categories}
                 defaults={editing}
               />
               <DialogFooter>

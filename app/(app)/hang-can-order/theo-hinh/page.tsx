@@ -13,7 +13,7 @@ export default async function OrderByPicturePage({
   searchParams: Promise<{ brandId?: string }>;
 }) {
   const { brandId } = await searchParams;
-  const [brands, skus] = await Promise.all([
+  const [brands, skus, categories] = await Promise.all([
     prisma.brand.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
     prisma.sku.findMany({
       orderBy: { sortOrder: "asc" },
@@ -24,9 +24,11 @@ export default async function OrderByPicturePage({
         size: true,
         brandId: true,
         unitsPerCase: true,
+        categoryId: true,
         imageUpdatedAt: true,
       },
     }),
+    prisma.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const catalog: CatalogSku[] = skus.map((s) => ({
@@ -36,6 +38,7 @@ export default async function OrderByPicturePage({
     size: s.size,
     brandId: s.brandId,
     unitsPerCase: s.unitsPerCase,
+    categoryId: s.categoryId,
     imageUrl: skuImageUrl(s),
   }));
   // Chỉ hiện brand có sản phẩm, kèm số mã để biết brand nào đã có ảnh.
@@ -55,7 +58,7 @@ export default async function OrderByPicturePage({
           <h1 className="text-2xl font-semibold">Order theo hình</h1>
         </div>
       </div>
-      <OrderCatalog brands={brandList} skus={catalog} initialBrandId={brandId} />
+      <OrderCatalog brands={brandList} skus={catalog} categories={categories} initialBrandId={brandId} />
     </div>
   );
 }
