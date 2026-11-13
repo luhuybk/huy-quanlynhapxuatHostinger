@@ -443,9 +443,14 @@ function CatalogBody({
       ))}
       {visibleCount === 0 && <p className="text-muted-foreground">Không có sản phẩm nào khớp.</p>}
 
-      {/* Thanh tổng: nằm trên thanh điều hướng dưới cùng của điện thoại. */}
+      {/* Thanh tổng luôn nổi ở đáy màn hình (trên thanh điều hướng điện thoại;
+          máy tính thì chừa sidebar w-56). Không dùng sticky được: <main> có
+          overflow-x-auto nên chính nó là khung cuộn, sticky không bám theo
+          màn hình mà còn bị đẩy lên đè sản phẩm cuối. Khoảng trống bên dưới
+          chừa chỗ cho thanh để mã cuối cùng vẫn bấm được. */}
+      {mode !== "sort" && <div aria-hidden className="h-32 md:h-20" />}
       {mode === "order" && (
-      <div className="sticky bottom-[4.5rem] z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:bottom-4">
+      <div className="fixed inset-x-3 bottom-[3.75rem] z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:right-6 md:bottom-4 md:left-[15.5rem]">
         <div className="flex gap-5 text-sm text-muted-foreground">
           <div>
             Số món
@@ -470,7 +475,7 @@ function CatalogBody({
       )}
 
       {mode === "stock" && brand && (
-        <div className="sticky bottom-[4.5rem] z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:bottom-4">
+        <div className="fixed inset-x-3 bottom-[3.75rem] z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur md:right-6 md:bottom-4 md:left-[15.5rem]">
           <p className="text-sm text-muted-foreground">
             <b className="text-foreground tabular-nums">{brandSkus.length - outCount}</b> còn hàng ·{" "}
             <b className="text-foreground tabular-nums">{outCount}</b> hãng hết
