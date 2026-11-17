@@ -74,10 +74,17 @@ export async function generateSkuCode(
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 4);
 
-  const countExisting = await client.sku.count({
+  // Lấy số lớn nhất đang có + 1, không đếm số mã: gộp/xoá mã để lại chỗ trống
+  // (CINP còn 20 mã nhưng đã lên tới 0026), đếm thì ra mã trùng mã cũ.
+  const existing = await client.sku.findMany({
     where: { code: { startsWith: `${brandPrefix}-` } },
+    select: { code: true },
   });
+  const maxSeq = existing.reduce((max, { code }) => {
+    const n = Number(code.slice(brandPrefix.length + 1));
+    return Number.isInteger(n) && n > max ? n : max;
+  }, 0);
 
-  const seq = pad(countExisting + 1, 4);
+  const seq = pad(maxSeq + 1, 4);
   return `${brandPrefix}-${seq}`;
 }
